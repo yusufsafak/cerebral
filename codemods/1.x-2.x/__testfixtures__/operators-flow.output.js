@@ -12,11 +12,6 @@ export default [
     false: []
   },
 
-  when(state`foo.isAwesome`), {
-    true: [],
-    false: []
-  },
-
   when(input`foo.isAwesome`), {
     true: [],
     false: []

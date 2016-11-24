@@ -1,6 +1,5 @@
 import {
   set,
-  copy,
   unset,
   toggle,
   state,
@@ -10,10 +9,10 @@ import {
 
 export default [
   // Copy
-  set(state`foo.bar`, input`bar`),
-  set(input`foo`, output`bar`),
-  set(input`foo`, state`foo.bar`),
-  set(state`foo.bar`, state`bar.baz`),
+  set(input`bar`, state`foo.bar`),
+  set(input`bar`, input`foo`),
+  set(state`foo.bar`, input`foo`),
+  set(state`bar.baz`, state`foo.bar`),
 
   // Set state
   set(state`foo.bar`, true),
