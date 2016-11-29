@@ -1,3 +1,4 @@
+/* eslint-disable */
 import {Controller} from 'cerebral'
 import Model from 'cerebral/models/immutable'
 

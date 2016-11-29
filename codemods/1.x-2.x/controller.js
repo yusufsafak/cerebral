@@ -1,25 +1,30 @@
-module.exports = function(fileInfo, api) {
-  const j = api.jscodeshift;
-  const root =  j(fileInfo.source);
+module.exports = function (fileInfo, api) {
+  const j = api.jscodeshift
+  const root = j(fileInfo.source)
 
   const modelImports = root.find(j.ImportDeclaration, {
     source: {
-      value: "cerebral/models/immutable"
+      value: 'cerebral/models/immutable'
     }
-  });
+  })
 
   if (!modelImports.length) {
-	  return null;
+    return null
   }
 
-  const modelImportName = modelImports.find(j.Identifier).get(0).node.name;
+  const modelImportName = modelImports.find(j.Identifier).get(0).node.name
 
-  modelImports.remove();
+  modelImports.remove()
 
-  const modelInstances = root.find(j.CallExpression, {callee: {name: modelImportName }});
-  const objectExpression = modelInstances.find(j.ObjectExpression);
+  const modelInstances = root.find(j.CallExpression, {
+    callee: {
+      name: modelImportName
+    }
+  })
 
-  modelInstances.replaceWith(objectExpression.get(0).node);
+  const objectExpression = modelInstances.find(j.ObjectExpression)
 
-  return root.toSource();
+  modelInstances.replaceWith(objectExpression.get(0).node)
+
+  return root.toSource()
 }
