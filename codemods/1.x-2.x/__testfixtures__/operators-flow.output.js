@@ -14,7 +14,5 @@ export default [
   },
 
   // Wait 200ms, then continue chain
-  wait(200, [
-    doSomething
-  ])
+  wait(200)
 ]

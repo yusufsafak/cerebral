@@ -66,6 +66,7 @@ module.exports = function (fileInfo, api) {
 
         if (importedName === 'delay') {
           node.callee.name = 'wait'
+          node.arguments = node.arguments.slice(0, 1)
         }
 
         node.arguments = node.arguments.map((args, index) => {
