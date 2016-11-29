@@ -1,9 +1,10 @@
+/* eslint-disable */
 import {
   set,
   copy,
   unset,
   toggle
-} from 'cerebral/operators'
+} from 'cerebral/operators';
 
 export default [
   // Copy

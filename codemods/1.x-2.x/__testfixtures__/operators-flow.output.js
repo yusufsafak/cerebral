@@ -1,9 +1,5 @@
-import {
-  state,
-  input,
-  when,
-  wait
-} from 'cerebral/operators'
+/* eslint-disable */
+import {when, wait, state, input} from 'cerebral/operators';
 
 export default [
   // Conditional truthy check of state or input
@@ -18,7 +14,7 @@ export default [
   },
 
   // Wait 200ms, then continue chain
-  ...wait(200, [
+  wait(200, [
     doSomething
-  ]),
+  ])
 ]

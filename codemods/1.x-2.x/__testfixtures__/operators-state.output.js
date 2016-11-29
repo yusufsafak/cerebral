@@ -1,11 +1,5 @@
-import {
-  set,
-  unset,
-  toggle,
-  state,
-  input,
-  output
-} from 'cerebral/operators'
+/* eslint-disable */
+import {set, unset, toggle, state, input} from 'cerebral/operators';
 
 export default [
   // Copy
