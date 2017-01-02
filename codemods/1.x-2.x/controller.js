@@ -23,8 +23,15 @@ module.exports = function (fileInfo, api) {
   })
 
   const objectExpression = modelInstances.find(j.ObjectExpression)
+  if (!objectExpression.length) {
+    return null
+  }
 
-  modelInstances.replaceWith(objectExpression.get(0).node)
+  const newObject = j.objectExpression([
+  	j.property('init', j.identifier("state"), objectExpression.get(0).node)
+  ])
+
+  modelInstances.replaceWith(newObject)
 
   return root.toSource()
 }
