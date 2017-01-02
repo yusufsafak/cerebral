@@ -43,10 +43,6 @@ module.exports = function (fileInfo, api) {
       const node = spec.get(0).node
       const importedName = node.imported.name
 
-      if (importedName === 'delay') {
-        node.imported.name = 'wait'
-      }
-
       root.find(j.CallExpression, {
         callee: {
           name: importedName
@@ -62,11 +58,6 @@ module.exports = function (fileInfo, api) {
           // Because you are setting the value, the logical order of
           // operations is reversed
           node.arguments = node.arguments.reverse()
-        }
-
-        if (importedName === 'delay') {
-          node.callee.name = 'wait'
-          node.arguments = node.arguments.slice(0, 1)
         }
 
         node.arguments = node.arguments.map((args, index) => {

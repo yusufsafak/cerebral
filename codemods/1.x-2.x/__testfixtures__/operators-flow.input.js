@@ -14,10 +14,5 @@ export default [
   when('input:foo.isAwesome'), {
     true: [],
     false: []
-  },
-
-  // Wait 200ms, then continue chain
-  delay(200, [
-    doSomething
-  ])
+  }
 ]
