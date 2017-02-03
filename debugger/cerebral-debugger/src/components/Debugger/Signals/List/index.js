@@ -96,6 +96,8 @@ export default connect({
         }
       }
 
+      var isHidden = isInOpenGroup && prevSignal && prevSignal.groupId === signal.groupId
+
       return (
         <li
           onClick={(event) => this.onSignalClick(event, signal, index)}
@@ -103,8 +105,8 @@ export default connect({
           className={className}
           key={index}>
           {signal.executionId === this.props.debugger.currentRememberedSignalExecutionId ? <div className='list-remembered' /> : null}
-          {isInOpenGroup && prevSignal && prevSignal.groupId === signal.groupId ? null : <div className={indicatorClassname} style={signalStyle} />}
-          <span className='list-name'>{name} <small>{!prevSignal && groupCount > 1 ? ` (${groupCount})` : null}</small></span>
+          {isHidden ? null : <div className={indicatorClassname} style={signalStyle} />}
+          <span className='list-name'>{name} <small>{!isHidden && groupCount > 1 ? ` (${groupCount})` : null}</small></span>
         </li>
       )
     }
