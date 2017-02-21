@@ -16,6 +16,9 @@ const controller = Controller({
       '/:filter': 'app.filterClicked'
     }
   }),
+  state: {
+    list: ['foo', 'bar']
+  },
   providers: [RecorderProvider()],
   modules: {
     app: App,
