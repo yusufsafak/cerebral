@@ -1,10 +1,13 @@
 {
   "title": "Cerebral Docs",
   "scripts": {
+    "index": [
+      "redirectFrontPage"
+    ],
     "docs": [
       "https://cdnjs.cloudflare.com/ajax/libs/prism/1.6.0/prism.min.js",
       "search",
-      "scroll-detect"
+      "mobile"
     ]
   },
   "css": {
@@ -16,68 +19,49 @@
     "docs": ["docs"]
   },
   "docs": {
-    "install": [
+    "get_started": [
       "index",
-      "boilerplate",
-      "tools",
-      "function_tree"
+      "debugger",
+      "the_architecture",
+      "demos",
+      "articles_and_videos",
+      "counter"
     ],
-    "tutorial": [
+    "developer_guide": [
       "index",
-      "define_state",
-      "render_state",
-      "update_state",
-      "chains",
-      "actions",
-      "async_actions",
-      "paths",
-      "compute_state",
-      "providers",
-      "routing",
-      "modules"
-    ],
-    "in_depth": [
-      "index",
-      "controller",
       "state",
+      "connect",
       "signals",
-      "chains_and_paths",
       "actions",
-      "providers",
-      "tags",
       "operators",
       "factories",
-      "connect",
+      "paths",
       "compute",
-      "routing"
+      "routing",
+      "organize",
+      "providers",
+      "test"
     ],
-    "best_practices": [
+    "tools": [
       "index",
-      "constants",
-      "testing",
-      "load_initial_data",
-      "storing_server_data",
-      "lists",
-      "modals",
-      "feedback_messages",
-      "popups",
-      "long_running_side_effects",
-      "server_side"
+      "firebase"
     ],
     "migration": [
       "index"
     ],
     "api": [
       "index",
+      "devtools",
+      "context",
       "state",
-      "signals",
       "tags",
+      "container",
       "connect",
       "modules",
       "operators",
       "providers",
       "compute",
-      "router"
+      "statecontainer"
     ]
   }
 }
