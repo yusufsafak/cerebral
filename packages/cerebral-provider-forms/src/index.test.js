@@ -163,4 +163,36 @@ describe('provider', () => {
     controller.getSignal('test')()
     rules._errorMessages = {}
   })
+  it('should be able to work with DebuggerProvider', () => {
+    const DebuggerProviderFactory = () => {
+      function DebuggerProvider (context, functionDetails, payload, prevPayload) {
+        context.debugger = {
+          wrapProvider (providerKey) { }
+        }
+        return context
+      }
+      return DebuggerProvider
+    }
+    const controller = Controller({
+      providers: [DebuggerProviderFactory(), FormsProvider()],
+      state: {
+        form: {
+          name: {
+            value: 'Ben'
+          }
+        }
+      },
+      signals: {
+        test: [
+          ({forms}) => {
+            const form = forms.get('form')
+            assert.equal(form.name.value, 'Ben')
+            assert.equal(form.name.isValid, true)
+          }
+        ]
+      }
+    })
+    controller.getSignal('test')()
+    rules._errorMessages = {}
+  })
 })
