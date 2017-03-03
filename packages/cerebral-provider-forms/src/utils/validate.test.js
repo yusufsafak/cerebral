@@ -1,7 +1,6 @@
 /* eslint-env mocha */
 import validate from './validate'
 import assert from 'assert'
-import rules from '../rules'
 
 describe('validate', () => {
   it('should return initialValidation if there is no validationRules', () => {
