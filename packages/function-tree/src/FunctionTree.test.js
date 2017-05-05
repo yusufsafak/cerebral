@@ -10,7 +10,14 @@ describe('FunctionTree', () => {
     assert.equal(typeof ft.once, 'function')
     assert.equal(typeof ft.off, 'function')
   })
-  it('should run functions', () => {
+  it('should run with function argument', () => {
+    const ft = new FunctionTree()
+
+    ft.run(() => {
+      assert.ok(true)
+    })
+  })
+  it('should run with array argument', () => {
     const ft = new FunctionTree()
 
     ft.run([
@@ -19,10 +26,26 @@ describe('FunctionTree', () => {
       }
     ])
   })
-  it('should run sequences', () => {
+  it('should throw when there is no tree', () => {
+    const ft = new FunctionTree()
+    assert.throws(() => {
+      ft.run()
+    }, (err) => {
+      if (err instanceof Error) {
+        return err.message === 'function-tree - You did not pass in a function tree'
+      }
+    })
+  })
+  it('should run sequence and parallel', () => {
     const ft = new FunctionTree()
 
     ft.run(sequence([
+      () => {
+        assert.ok(true)
+      }
+    ]))
+
+    ft.run(parallel([
       () => {
         assert.ok(true)
       }
@@ -101,6 +124,23 @@ describe('FunctionTree', () => {
         assert.equal(foo, 'bar')
       }
     ])
+  })
+  it('should throw when context provider did not return context', () => {
+    const ft = new FunctionTree([
+      function SomeProvider (context) {
+        return {foo: 'bar'}
+      }
+    ])
+
+    ft.run([
+      ({foo}) => {
+        assert.equal(foo, 'bar')
+      }
+    ]).catch((err) => {
+      assert.equal(err.message, 'A provider is not returning the context object, maybe it is a function factory and you forgot to call it?')
+      assert.equal(err.toJSON().message, 'A provider is not returning the context object, maybe it is a function factory and you forgot to call it?')
+      assert.equal(err.name, 'FunctionTreeError')
+    })
   })
   it('should emit execution events in correct order', () => {
     let eventsCount = 0
@@ -230,6 +270,113 @@ describe('FunctionTree', () => {
     ft.once('error', (error) => {
       assert.ok(error instanceof FunctionTreeExecutionError)
       assert.ok(error.message.match(/needs to be a path of either success/))
+      done()
+    })
+    ft.run(tree).catch(() => {})
+  })
+  it('should give error when path and no path returned with Promise', (done) => {
+    function actionA () {
+      return Promise.resolve({foo: 'bar'})
+    }
+
+    const ft = new FunctionTree([])
+    const tree = [
+      actionA, {
+        success: []
+      }
+    ]
+
+    ft.once('error', (error) => {
+      assert.ok(error instanceof FunctionTreeExecutionError)
+      assert.ok(error.message.match(/needs to be a path of either success/))
+      done()
+    })
+    ft.run(tree).catch(() => {})
+  })
+  it('should give error when function returns invalid result', (done) => {
+    function actionA () {
+      return 'bar'
+    }
+
+    const ft = new FunctionTree([])
+    const tree = [
+      actionA
+    ]
+
+    ft.once('error', (error) => {
+      assert.ok(error instanceof FunctionTreeExecutionError)
+      assert.equal(error.message, 'The result "bar" from function actionA is not a valid result')
+      done()
+    })
+    ft.run(tree).catch(() => {})
+  })
+  it('should give error when promise function returns invalid result', (done) => {
+    function actionA () {
+      return Promise.resolve('bar')
+    }
+
+    const ft = new FunctionTree([])
+    const tree = [
+      actionA
+    ]
+
+    ft.once('error', (error) => {
+      assert.ok(error instanceof FunctionTreeExecutionError)
+      assert.equal(error.message, 'The result "bar" from function actionA is not a valid result')
+      done()
+    })
+    ft.run(tree).catch(() => {})
+  })
+  it('should give error when promise function rejects without a path', (done) => {
+    function actionA () {
+      return Promise.reject({foo: 'bar'})
+    }
+
+    const ft = new FunctionTree([])
+    const tree = [
+      actionA, {
+        success: []
+      }
+    ]
+
+    ft.once('error', (error) => {
+      assert.ok(error instanceof FunctionTreeExecutionError)
+      assert.ok(error.message.match(/needs to be a path of either success/))
+      done()
+    })
+    ft.run(tree).catch(() => {})
+  })
+  // Is it OK?
+  it('should continue when promise function rejects with a valid result', (done) => {
+    function actionA () {
+      return Promise.reject({foo: 'bar'})
+    }
+
+    const ft = new FunctionTree([])
+    const tree = [
+      actionA
+    ]
+    ft.once('end', (execution, finalPayload) => {
+      assert.deepEqual(finalPayload, {
+        foo: 'bar'
+      })
+      done()
+    })
+    ft.run(tree)
+  })
+  it('should give error when promise function rejects with an invalid result', (done) => {
+    function actionA () {
+      return Promise.reject('bar')
+    }
+
+    const ft = new FunctionTree([])
+    const tree = [
+      actionA
+    ]
+
+    ft.once('error', (error) => {
+      assert.ok(error instanceof FunctionTreeExecutionError)
+      assert.equal(error.message, 'The result "bar" from function actionA is not a valid result')
       done()
     })
     ft.run(tree).catch(() => {})
