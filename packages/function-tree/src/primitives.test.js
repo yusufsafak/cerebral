@@ -16,7 +16,7 @@ describe('primitives', () => {
     assert.equal(primitive.toJSON().name, 'test')
     assert.equal(primitive.toJSON()._functionTreePrimitive, true)
     assert.equal(primitive.toJSON().type, 'primitive')
-    assert.equal(primitive.toJSON().items, items)
+    assert.deepEqual(primitive.toJSON().items, items)
   })
   it('should throw when items is not array', () => {
     const items = function a () {}
@@ -42,7 +42,7 @@ describe('primitives', () => {
       assert.equal(sequence.toJSON().name, null)
       assert.equal(sequence.toJSON()._functionTreePrimitive, true)
       assert.equal(sequence.toJSON().type, 'sequence')
-      assert.equal(sequence.toJSON().items, items)
+      assert.deepEqual(sequence.toJSON().items, items)
     })
     it('should set name of sequence', () => {
       const items = [
@@ -57,7 +57,7 @@ describe('primitives', () => {
       assert.equal(sequence.toJSON().name, 'test')
       assert.equal(sequence.toJSON()._functionTreePrimitive, true)
       assert.equal(sequence.toJSON().type, 'sequence')
-      assert.equal(sequence.toJSON().items, items)
+      assert.deepEqual(sequence.toJSON().items, items)
     })
   })
   describe('parallel', () => {
@@ -74,7 +74,7 @@ describe('primitives', () => {
       assert.equal(parallel.toJSON().name, null)
       assert.equal(parallel.toJSON()._functionTreePrimitive, true)
       assert.equal(parallel.toJSON().type, 'parallel')
-      assert.equal(parallel.toJSON().items, items)
+      assert.deepEqual(parallel.toJSON().items, items)
     })
     it('should set name of parallel', () => {
       const items = [
@@ -89,7 +89,7 @@ describe('primitives', () => {
       assert.equal(parallel.toJSON().name, 'test')
       assert.equal(parallel.toJSON()._functionTreePrimitive, true)
       assert.equal(parallel.toJSON().type, 'parallel')
-      assert.equal(parallel.toJSON().items, items)
+      assert.deepEqual(parallel.toJSON().items, items)
     })
   })
 })

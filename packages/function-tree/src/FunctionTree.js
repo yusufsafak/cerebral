@@ -106,7 +106,7 @@ class FunctionTreeExecution {
         .then(function (result) {
           if (result instanceof Path) {
             functionTree.emit('functionEnd', execution, funcDetails, payload, result)
-            next(result.toJS())
+            next(result.toJSON())
           } else if (funcDetails.outputs) {
             functionTree.emit('functionEnd', execution, funcDetails, payload, result)
             throw new FunctionTreeExecutionError(execution, funcDetails, payload, new Error('The result ' + JSON.stringify(result) + ' from function ' + funcDetails.name + ' needs to be a path of either ' + Object.keys(funcDetails.outputs)))
@@ -126,7 +126,7 @@ class FunctionTreeExecution {
             errorCallback(createErrorObject(result, execution, funcDetails, payload), execution, funcDetails, payload)
           } else if (result instanceof Path) {
             functionTree.emit('functionEnd', execution, funcDetails, payload, result)
-            next(result.toJS())
+            next(result.toJSON())
           } else if (funcDetails.outputs) {
             let error = new FunctionTreeExecutionError(execution, funcDetails, payload, new Error('The result ' + JSON.stringify(result) + ' from function ' + funcDetails.name + ' needs to be a path of either ' + Object.keys(funcDetails.outputs)))
 
@@ -146,7 +146,7 @@ class FunctionTreeExecution {
         })
     } else if (result instanceof Path) {
       functionTree.emit('functionEnd', execution, funcDetails, payload, result)
-      next(result.toJS())
+      next(result.toJSON())
     } else if (funcDetails.outputs) {
       let error = new FunctionTreeExecutionError(execution, funcDetails, payload, new Error('The result ' + JSON.stringify(result) + ' from function ' + funcDetails.name + ' needs to be a path of either ' + Object.keys(funcDetails.outputs)))
 
