@@ -364,6 +364,26 @@ describe('FunctionTree', () => {
     })
     ft.run(tree)
   })
+  // Is it OK?
+  it('should continue when promise function rejects with a valid path', (done) => {
+    function actionA ({path}) {
+      return Promise.reject(path.success({foo: 'bar'}))
+    }
+
+    const ft = new FunctionTree([])
+    const tree = [
+      actionA, {
+        success: []
+      }
+    ]
+    ft.once('end', (execution, finalPayload) => {
+      assert.deepEqual(finalPayload, {
+        foo: 'bar'
+      })
+      done()
+    })
+    ft.run(tree)
+  })
   it('should give error when promise function rejects with an invalid result', (done) => {
     function actionA () {
       return Promise.reject('bar')

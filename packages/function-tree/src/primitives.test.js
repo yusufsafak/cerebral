@@ -21,7 +21,7 @@ describe('primitives', () => {
   it('should throw when items is not array', () => {
     const items = function a () {}
     assert.throws(() => {
-      Primitive('primitive', items)
+      new Primitive('primitive', items) // eslint-disable-line no-new
     }, (err) => {
       if ((err instanceof Error) && err.name === 'FunctionTreeError' && err.toJSON) {
         return err.toJSON().message === 'You have not passed an array of functions to primitive'
