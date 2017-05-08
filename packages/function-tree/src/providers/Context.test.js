@@ -22,7 +22,7 @@ describe('ContextProvider', () => {
         function provider (context, functionDetails, payload) {
           context.debugger = {
             send (data) {
-              console.log(data)
+              assert.ok(data)
             }
           }
 
@@ -45,12 +45,12 @@ describe('ContextProvider', () => {
       }
     ])
   })
-  it('should run with DebuggerProvider with function context', () => {
+  it('should run with DebuggerProvider when passed value is function', () => {
     const DebuggerProvider = () => {
         function provider (context, functionDetails, payload) {
           context.debugger = {
             send (data) {
-              console.log(data)
+              assert.ok(data)
             }
           }
 
@@ -62,13 +62,47 @@ describe('ContextProvider', () => {
     const ft = new FunctionTree([
       DebuggerProvider(),
       ContextProvider({
-        foo: () => { return 'bar' }
+        foo: (baz) => { return 'bar' + baz }
       })
     ])
 
     ft.run([
       ({foo}) => {
-        assert.equal(foo(), 'bar')
+        assert.equal(foo('baz'), 'barbaz')
+      }
+    ])
+  })
+  it('should run with DebuggerProvider when passed value is function instance', () => {
+    const Test = function (foo) {
+      this.foo = foo
+      this.getFoo = function() { return this.foo }
+      this.setFoo = function(value) { this.foo = value }
+    }
+    const DebuggerProvider = () => {
+        function provider (context, functionDetails, payload) {
+          context.debugger = {
+            send (data) {
+              assert.ok(data)
+            }
+          }
+
+          return context
+        }
+
+        return provider
+      }
+    const ft = new FunctionTree([
+      DebuggerProvider(),
+      ContextProvider({
+        test: new Test('foo')
+      })
+    ])
+
+    ft.run([
+      ({test}) => {
+        assert.equal(test.foo, 'foo')
+        test.setFoo('bar')
+        assert.equal(test.getFoo(), 'bar')
       }
     ])
   })

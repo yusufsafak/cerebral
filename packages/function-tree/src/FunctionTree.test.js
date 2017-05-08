@@ -401,6 +401,24 @@ describe('FunctionTree', () => {
     })
     ft.run(tree).catch(() => {})
   })
+  it('should throw when given path is not defined', (done) => {
+    function actionA ({path}) {
+      return path.otherwise()
+    }
+    const ft = new FunctionTree([])
+    const tree = [
+      actionA, {
+        true: [],
+        false: []
+      }
+    ]
+    ft.run(tree, {
+      foo: 'bar'
+    }).catch((error) => {
+      assert.ok(error)
+      done()
+    })
+  })
   it('should provide unique index to functions, even though the same', () => {
     function actionA () {}
     let count = 0
@@ -568,6 +586,44 @@ describe('FunctionTree', () => {
 
     ft.once('end', () => {
       assert.deepEqual(results, ['B', 'A', 'C', 'D'])
+      done()
+    })
+
+    ft.run(tree)
+  })
+  it('should run grouped functions parallelly inside parallel', (done) => {
+    const results = []
+    function funcA () {
+      return Promise.resolve().then(() => { results.push('A') })
+    }
+    function funcB () {
+      results.push('B')
+    }
+    const group = parallel([
+      function funC () {
+        return Promise.resolve().then(() => { results.push('C') })
+      },
+      function funcD () {
+        results.push('D')
+      }
+    ])
+    const group2 =  parallel([
+      function funcE () {
+        results.push('E')
+      }
+    ])
+    const ft = new FunctionTree([])
+    const tree = [
+      parallel([
+        funcA,
+        funcB,
+        group,
+        group2
+      ])
+    ]
+
+    ft.once('end', () => {
+      assert.deepEqual(results, [ 'B', 'E', 'A', 'C', 'D' ])
       done()
     })
 
