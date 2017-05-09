@@ -346,7 +346,6 @@ describe('FunctionTree', () => {
     })
     ft.run(tree).catch(() => {})
   })
-  // Is it OK?
   it('should continue when promise function rejects with a valid result', (done) => {
     function actionA () {
       return Promise.reject({foo: 'bar'})
@@ -364,7 +363,6 @@ describe('FunctionTree', () => {
     })
     ft.run(tree)
   })
-  // Is it OK?
   it('should continue when promise function rejects with a valid path', (done) => {
     function actionA ({path}) {
       return Promise.reject(path.success({foo: 'bar'}))
@@ -607,7 +605,7 @@ describe('FunctionTree', () => {
         results.push('D')
       }
     ])
-    const group2 =  parallel([
+    const group2 = parallel([
       function funcE () {
         results.push('E')
       }

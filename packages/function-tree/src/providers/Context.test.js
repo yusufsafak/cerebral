@@ -19,18 +19,18 @@ describe('ContextProvider', () => {
   })
   it('should run with DebuggerProvider', () => {
     const DebuggerProvider = () => {
-        function provider (context, functionDetails, payload) {
-          context.debugger = {
-            send (data) {
-              assert.ok(data)
-            }
+      function provider (context, functionDetails, payload) {
+        context.debugger = {
+          send (data) {
+            assert.ok(data)
           }
-
-          return context
         }
 
-        return provider
+        return context
       }
+
+      return provider
+    }
     const ft = new FunctionTree([
       DebuggerProvider(),
       ContextProvider({
@@ -47,18 +47,18 @@ describe('ContextProvider', () => {
   })
   it('should run with DebuggerProvider when passed value is function', () => {
     const DebuggerProvider = () => {
-        function provider (context, functionDetails, payload) {
-          context.debugger = {
-            send (data) {
-              assert.ok(data)
-            }
+      function provider (context, functionDetails, payload) {
+        context.debugger = {
+          send (data) {
+            assert.ok(data)
           }
-
-          return context
         }
 
-        return provider
+        return context
       }
+
+      return provider
+    }
     const ft = new FunctionTree([
       DebuggerProvider(),
       ContextProvider({
@@ -75,22 +75,22 @@ describe('ContextProvider', () => {
   it('should run with DebuggerProvider when passed value is function instance', () => {
     const Test = function (foo) {
       this.foo = foo
-      this.getFoo = function() { return this.foo }
-      this.setFoo = function(value) { this.foo = value }
+      this.getFoo = function () { return this.foo }
+      this.setFoo = function (value) { this.foo = value }
     }
     const DebuggerProvider = () => {
-        function provider (context, functionDetails, payload) {
-          context.debugger = {
-            send (data) {
-              assert.ok(data)
-            }
+      function provider (context, functionDetails, payload) {
+        context.debugger = {
+          send (data) {
+            assert.ok(data)
           }
-
-          return context
         }
 
-        return provider
+        return context
       }
+
+      return provider
+    }
     const ft = new FunctionTree([
       DebuggerProvider(),
       ContextProvider({

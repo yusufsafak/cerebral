@@ -16,7 +16,7 @@ export default function executeTree (execution, initialPayload, branchStart, bra
 
     function processFunctionOutput (funcDetails, outputResult) {
       return function (result) {
-        console.log(result);
+        // there is always result from execution.runFunction next function
         const newPayload = Object.assign({}, payload, result ? result.payload : {})
 
         if (result && funcDetails.outputs) {
@@ -26,7 +26,7 @@ export default function executeTree (execution, initialPayload, branchStart, bra
             branchStart(funcDetails, result.path, newPayload)
             runBranch(funcDetails.outputs[result.path].items, 0, newPayload, payload, outputResult)
           } else {
-            //it does not throw. TypeError throws before this one
+            // it does not throw. TypeError throws before this one
             throw new FunctionTreeExecutionError(
               execution,
               funcDetails,
