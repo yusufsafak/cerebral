@@ -2,23 +2,24 @@ import Path from '../Path'
 import WebSocket from 'universal-websocket-client'
 
 export class DevtoolsBase {
-  constructor (options = {
-    socketClass: WebSocket,
-    remoteDebugger: null,
-    reconnect: true
-  }) {
-    this.remoteDebugger = options.remoteDebugger || null
+  constructor ({
+    socketClass = WebSocket,
+    remoteDebugger = null,
+    reconnect = true,
+    reconnectInterval = 10000
+  } = {}) {
+    this.remoteDebugger = remoteDebugger
 
     if (!this.remoteDebugger) {
       throw new Error('Function-tree DevtoolsBase: You have to pass in the "remoteDebugger" option')
     }
 
-    this.socketClass = options.socketClass
+    this.socketClass = socketClass
     this.backlog = []
     this.isConnected = false
     this.ws = null
-    this.reconnectInterval = 10000
-    this.doReconnect = typeof options.reconnect === 'undefined' ? true : options.reconnect
+    this.reconnectInterval = reconnectInterval
+    this.doReconnect = typeof reconnect === 'undefined' ? true : reconnect
 
     this.sendInitial = this.sendInitial.bind(this)
 
@@ -38,6 +39,18 @@ export class DevtoolsBase {
       }
     }, this.reconnectInterval)
   }
+  /*
+    The debugger might be ready or it might not. The initial communication
+    with the debugger requires a "ping" -> "pong" to identify that it
+    is ready to receive messages.
+    1. Debugger is open when app loads
+      - Devtools sends "ping"
+      - Debugger sends "pong"
+      - Devtools sends "init"
+    2. Debugger is opened after app load
+      - Debugger sends "ping"
+      - Devtools sends "init"
+  */
   init () {
     this.addListeners()
     this.ws.onopen = () => {
