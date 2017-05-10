@@ -1,4 +1,5 @@
 import DevtoolsBase from './base'
+import WebSocket from 'universal-websocket-client'
 
 export class Devtools extends DevtoolsBase {
   constructor (options) {
@@ -6,24 +7,16 @@ export class Devtools extends DevtoolsBase {
     this.trees = []
     this.latestExecutionId = null
   }
-  onMessage (event) {
-    const message = JSON.parse(event.data)
-    switch (message.type) {
-      case 'pong':
-        this.sendInitial()
-        break
-      case 'ping':
-        this.sendInitial()
-        break
-    }
-  }
   add (tree) {
     this.trees.push(tree)
     tree.contextProviders.unshift(this.Provider())
     this.watchExecution(tree, 'ft')
   }
   remove (tree) {
+    console.log(tree, this.trees.indexOf(tree));
     this.trees.splice(this.trees.indexOf(tree), 1)
+    tree.contextProviders.splice(0, 1)
+
     tree.removeAllListeners('start')
     tree.removeAllListeners('end')
     tree.removeAllListeners('pathStart')
@@ -32,7 +25,10 @@ export class Devtools extends DevtoolsBase {
     tree.removeAllListeners('error')
   }
   destroy () {
-    this.trees.forEach(this.remove.bind(this))
+    this.trees.forEach((tree) => {
+      console.log(tree)
+      this.remove(tree)
+    })
   }
   safeStringify (object) {
     const refs = []
@@ -136,6 +132,20 @@ export class Devtools extends DevtoolsBase {
     }
 
     return provider
+  }
+  addListeners () {
+    this.ws = new WebSocket(`ws://${this.remoteDebugger}`)
+    this.ws.onmessage = (event) => {
+      const message = JSON.parse(event.data)
+      switch (message.type) {
+        case 'pong':
+          this.sendInitial()
+          break
+        case 'ping':
+          this.sendInitial()
+          break
+      }
+    }
   }
 }
 
