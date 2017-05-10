@@ -1,9 +1,7 @@
 import Path from '../Path'
-import WebSocket from 'universal-websocket-client'
 
 export class DevtoolsBase {
   constructor ({
-    socketClass = WebSocket,
     remoteDebugger = null,
     reconnect = true,
     reconnectInterval = 10000
@@ -14,7 +12,6 @@ export class DevtoolsBase {
       throw new Error('Function-tree DevtoolsBase: You have to pass in the "remoteDebugger" option')
     }
 
-    this.socketClass = socketClass
     this.backlog = []
     this.isConnected = false
     this.ws = null
@@ -25,11 +22,7 @@ export class DevtoolsBase {
 
     this.init()
   }
-  addListeners () {
-    this.ws = new this.socketClass(`ws://${this.remoteDebugger}`)
-    this.ws.onmessage = this.onMessage.bind(this)
-  }
-  onMessage (event) { }
+  addListeners () { }
   reconnect () {
     setTimeout(() => {
       this.init()
@@ -70,6 +63,13 @@ export class DevtoolsBase {
     this.ws.send(stringifiedMessage)
   }
   watchExecution (tree, source) {
+    const sendExecutionMessage = (message) => {
+      if (this.isConnected) {
+        this.sendMessage(message)
+      } else {
+        this.backlog.push(message)
+      }
+    }
     tree.on('start', (execution, payload) => {
       const message = JSON.stringify({
         type: 'executionStart',
@@ -85,11 +85,7 @@ export class DevtoolsBase {
         }
       })
 
-      if (this.isConnected) {
-        this.sendMessage(message)
-      } else {
-        this.backlog.push(message)
-      }
+      sendExecutionMessage(message)
     })
     tree.on('end', (execution) => {
       const message = JSON.stringify({
@@ -103,11 +99,7 @@ export class DevtoolsBase {
       })
       this.latestExecutionId = execution.id
 
-      if (this.isConnected) {
-        this.sendMessage(message)
-      } else {
-        this.backlog.push(message)
-      }
+      sendExecutionMessage(message)
     })
     tree.on('pathStart', (path, execution, funcDetails) => {
       const message = JSON.stringify({
@@ -122,15 +114,11 @@ export class DevtoolsBase {
         }
       })
 
-      if (this.isConnected) {
-        this.sendMessage(message)
-      } else {
-        this.backlog.push(message)
-      }
+      sendExecutionMessage(message)
     })
     tree.on('functionStart', (execution, funcDetails, payload) => {
       const message = this.safeStringify({
-        type: 'execution',
+        type: 'executionFunctionStart',
         source: source,
         data: {
           execution: {
@@ -142,11 +130,7 @@ export class DevtoolsBase {
         }
       })
 
-      if (this.isConnected) {
-        this.sendMessage(message)
-      } else {
-        this.backlog.push(message)
-      }
+      sendExecutionMessage(message)
     })
     tree.on('functionEnd', (execution, funcDetails, payload, result) => {
       if (!result || (result instanceof Path && !result.payload)) {
@@ -165,11 +149,7 @@ export class DevtoolsBase {
         }
       })
 
-      if (this.isConnected) {
-        this.sendMessage(message)
-      } else {
-        this.backlog.push(message)
-      }
+      sendExecutionMessage(message)
     })
     tree.on('error', (error, execution, funcDetails) => {
       const message = JSON.stringify({
@@ -189,21 +169,18 @@ export class DevtoolsBase {
         }
       })
 
-      if (this.isConnected) {
-        this.sendMessage(message)
-      } else {
-        this.backlog.push(message)
-      }
+      sendExecutionMessage(message)
     })
   }
+
   sendInitial () { }
-  /*
-    Create the stringified message for the debugger. As we need to
-    store mutations with the default true "storeMutations" option used
-    by time travel and jumping between Cerebral apps, we are careful
-    not doing unnecessary stringifying.
-  */
   createExecutionMessage (debuggingData, context, functionDetails, payload) { }
+  /*
+    Sends execution data to the debugger. Whenever a signal starts
+    it will send a message to the debugger, but any functions in the
+    function tree might also use this to send debugging data. Like when
+    mutations are done or any wrapped methods run.
+  */
   sendExecutionData (debuggingData, context, functionDetails, payload) {
     const message = this.createExecutionMessage(debuggingData, context, functionDetails, payload)
 
