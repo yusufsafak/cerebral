@@ -1,6 +1,7 @@
 /* global WebSocket File FileList Blob ImageData */
 import {delay, throwError} from '../utils'
 import Path from 'function-tree/lib/Path'
+import DevtoolsBase from 'function-tree/lib/devtools/base'
 const PLACEHOLDER_INITIAL_MODEL = 'PLACEHOLDER_INITIAL_MODEL'
 const PLACEHOLDER_DEBUGGING_DATA = '$$DEBUGGING_DATA$$'
 
@@ -9,37 +10,32 @@ const PLACEHOLDER_DEBUGGING_DATA = '$$DEBUGGING_DATA$$'
   - Triggers events with information from function tree execution
   - Stores data related to time travel, if activated
 */
-class Devtools {
-  constructor (options = {
-    storeMutations: true,
-    preventExternalMutations: true,
-    preventPropsReplacement: false,
-    bigComponentsWarning: 10,
-    remoteDebugger: null,
-    allowedTypes: [],
-    doReconnect: true
-  }) {
+export class Devtools extends DevtoolsBase {
+  constructor ({
+    storeMutations = true,
+    preventExternalMutations = true,
+    preventPropsReplacement = false,
+    bigComponentsWarning = 10,
+    remoteDebugger = null,
+    reconnect = true,
+    allowedTypes = []
+  } = {}) {
+    super({
+      remoteDebugger,
+      reconnect,
+      reconnectInterval: 5000
+    })
     this.debuggerComponentsMap = {}
     this.debuggerComponentDetailsId = 1
-    this.storeMutations = typeof options.storeMutations === 'undefined' ? true : options.storeMutations
-    this.preventExternalMutations = typeof options.preventExternalMutations === 'undefined' ? true : options.preventExternalMutations
-    this.doReconnect = typeof options.reconnect === 'undefined' ? true : options.reconnect
-    this.preventPropsReplacement = options.preventPropsReplacement || false
-    this.bigComponentsWarning = options.bigComponentsWarning || 10
-    this.remoteDebugger = options.remoteDebugger || null
+    this.storeMutations = storeMutations
+    this.preventExternalMutations = preventExternalMutations
+    this.preventPropsReplacement = preventPropsReplacement
+    this.bigComponentsWarning = bigComponentsWarning
 
-    if (!this.remoteDebugger) {
-      throwError('You have to pass "remoteDebugger" property')
-    }
-
-    this.backlog = []
     this.mutations = []
     this.initialModelString = null
-    this.isConnected = false
     this.controller = null
     this.originalRunTreeFunction = null
-    this.reconnectInterval = 5000
-    this.ws = null
     this.isResettingDebugger = false
     this.allowedTypes = []
       .concat(typeof File === 'undefined' ? [] : File)
@@ -92,43 +88,34 @@ class Devtools {
     this.mutations = []
     this.controller.flush(true)
   }
-  /*
-    Sets up the listeners to Chrome Extension or remote debugger
-  */
-  addListeners () {
-    this.ws = new WebSocket(`ws://${this.remoteDebugger}`)
-    this.ws.onmessage = (event) => {
-      const message = JSON.parse(event.data)
-      switch (message.type) {
-        case 'changeModel':
-          this.controller.model.set(message.data.path, message.data.value)
-          this.controller.flush()
-          break
-        case 'remember':
-          if (!this.storeMutations) {
-            console.warn('Cerebral Devtools - You tried to time travel, but you have turned of storing of mutations')
-          }
-          this.remember(message.data)
-          break
-        case 'reset':
-          this.reset()
-          break
-        case 'pong':
-          this.sendInitial()
-          break
-        case 'ping':
-          this.sendInitial()
-          break
-      }
+
+  onMessage (event) {
+    const message = JSON.parse(event.data)
+    switch (message.type) {
+      case 'changeModel':
+        this.controller.model.set(message.data.path, message.data.value)
+        this.controller.flush()
+        break
+      case 'remember':
+        if (!this.storeMutations) {
+          console.warn('Cerebral Devtools - You tried to time travel, but you have turned of storing of mutations')
+        }
+        this.remember(message.data)
+        break
+      case 'reset':
+        this.reset()
+        break
+      case 'pong':
+        this.sendInitial()
+        break
+      case 'ping':
+        this.sendInitial()
+        break
     }
   }
   reconnect () {
     setTimeout(() => {
       this.init(this.controller)
-      this.ws.onclose = () => {
-        this.isConnected = false
-        this.reconnect()
-      }
     }, this.reconnectInterval)
   }
   /*
@@ -151,165 +138,15 @@ class Devtools {
       this.initialModelString = JSON.stringify(controller.model.get())
     }
 
-    this.addListeners()
-
-    this.ws.onopen = () => {
-      this.ws.send(JSON.stringify({type: 'ping'}))
-    }
-    this.ws.onerror = () => {}
-    this.ws.onclose = () => {
-      this.isConnected = false
-      if (this.doReconnect) {
-        console.warn('Could not connect to the debugger, please make sure it is running... automatically retrying in the background')
-        this.reconnect()
-      }
-    }
-
-    this.watchExecution()
-  }
-  /*
-    Sends message to chrome extension or remote debugger
-  */
-  sendMessage (stringifiedMessage) {
-    this.ws.send(stringifiedMessage)
-  }
-  /*
-    Watches function tree for execution of signals. This is passed to
-    debugger to prevent time travelling when executing. It also tracks
-    latest executed signal for "remember" to know when signals can be
-    called again
-  */
-  watchExecution () {
-    this.controller.on('start', (execution, payload) => {
-      const message = JSON.stringify({
-        type: 'executionStart',
-        source: 'c',
-        data: {
-          execution: {
-            executionId: execution.id,
-            name: execution.name,
-            staticTree: execution.staticTree,
-            datetime: execution.datetime,
-            executedBy: (payload && payload._execution) ? payload._execution : null
-          }
-        }
-      })
-
-      if (this.isConnected) {
-        this.sendMessage(message)
-      } else {
-        this.backlog.push(message)
-      }
-    })
-    this.controller.on('end', (execution) => {
-      const message = JSON.stringify({
-        type: 'executionEnd',
-        source: 'c',
-        data: {
-          execution: {
-            executionId: execution.id
-          }
-        }
-      })
-      this.latestExecutionId = execution.id
-
-      if (this.isConnected) {
-        this.sendMessage(message)
-      } else {
-        this.backlog.push(message)
-      }
-    })
-    this.controller.on('pathStart', (path, execution, funcDetails) => {
-      const message = JSON.stringify({
-        type: 'executionPathStart',
-        source: 'c',
-        data: {
-          execution: {
-            executionId: execution.id,
-            functionIndex: funcDetails.functionIndex,
-            path
-          }
-        }
-      })
-
-      if (this.isConnected) {
-        this.sendMessage(message)
-      } else {
-        this.backlog.push(message)
-      }
-    })
-    this.controller.on('functionStart', (execution, funcDetails, payload) => {
-      const message = JSON.stringify({
-        type: 'execution',
-        source: 'c',
-        data: {
-          execution: {
-            executionId: execution.id,
-            functionIndex: funcDetails.functionIndex,
-            payload,
-            data: null
-          }
-        }
-      })
-
-      if (this.isConnected) {
-        this.sendMessage(message)
-      } else {
-        this.backlog.push(message)
-      }
-    })
-    this.controller.on('functionEnd', (execution, funcDetails, payload, result) => {
-      if (!result || (result instanceof Path && !result.payload)) {
-        return
-      }
-
-      const message = JSON.stringify({
-        type: 'executionFunctionEnd',
-        source: 'c',
-        data: {
-          execution: {
-            executionId: execution.id,
-            functionIndex: funcDetails.functionIndex,
-            output: result instanceof Path ? result.payload : result
-          }
-        }
-      })
-
-      if (this.isConnected) {
-        this.sendMessage(message)
-      } else {
-        this.backlog.push(message)
-      }
-    })
-    this.controller.on('error', (error, execution, funcDetails) => {
-      const message = JSON.stringify({
-        type: 'executionFunctionError',
-        source: 'c',
-        data: {
-          execution: {
-            executionId: execution.id,
-            functionIndex: funcDetails.functionIndex,
-            error: {
-              name: error.name,
-              message: error.message,
-              stack: error.stack,
-              func: funcDetails.function.toString()
-            }
-          }
-        }
-      })
-
-      if (this.isConnected) {
-        this.sendMessage(message)
-      } else {
-        this.backlog.push(message)
-      }
-    })
+    super.init()
+    // TODO: maybe bug
+    this.watchExecution(this.controller, 'c')
   }
   /*
     Sends multiple message in one batch to debugger, causing debugger
     also to synchronously run all updates before rendering
   */
+  /* TODO: function-tree debugger ??? */
   sendBulkMessage (messages) {
     const message = JSON.stringify({
       type: 'bulk',
@@ -394,21 +231,6 @@ class Devtools {
       version: VERSION, // eslint-disable-line
       data: data
     }).replace(`"${PLACEHOLDER_DEBUGGING_DATA}"`, mutationString)
-  }
-  /*
-    Sends execution data to the debugger. Whenever a signal starts
-    it will send a message to the debugger, but any functions in the
-    function tree might also use this to send debugging data. Like when
-    mutations are done or any wrapped methods run.
-  */
-  sendExecutionData (debuggingData, context, functionDetails, payload) {
-    const message = this.createExecutionMessage(debuggingData, context, functionDetails, payload)
-
-    if (this.isConnected) {
-      this.sendMessage(message)
-    } else {
-      this.backlog.push(message)
-    }
   }
   /*
     The container will listen to "flush" events from the controller
