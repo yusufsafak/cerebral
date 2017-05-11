@@ -16,20 +16,23 @@ export class DevtoolsBase {
     this.isConnected = false
     this.ws = null
     this.reconnectInterval = reconnectInterval
-    this.doReconnect = typeof reconnect === 'undefined' ? true : reconnect
+    this.doReconnect = reconnect
 
     this.sendInitial = this.sendInitial.bind(this)
 
     this.init()
   }
-  addListeners () { }
+  createSocket () {
+    this.ws = new WebSocket(`ws://${this.remoteDebugger}`)
+  }
+  addListeners () {
+    this.createSocket()
+    this.ws.onmessage = this.onMessage.bind(this)
+  }
+  onMessage (event) { }
   reconnect () {
     setTimeout(() => {
       this.init()
-      this.ws.onclose = () => {
-        this.isConnected = false
-        this.reconnect()
-      }
     }, this.reconnectInterval)
   }
   /*
@@ -63,13 +66,6 @@ export class DevtoolsBase {
     this.ws.send(stringifiedMessage)
   }
   watchExecution (tree, source) {
-    const sendExecutionMessage = (message) => {
-      if (this.isConnected) {
-        this.sendMessage(message)
-      } else {
-        this.backlog.push(message)
-      }
-    }
     tree.on('start', (execution, payload) => {
       const message = JSON.stringify({
         type: 'executionStart',
@@ -85,7 +81,7 @@ export class DevtoolsBase {
         }
       })
 
-      sendExecutionMessage(message)
+      this.sendExecutionMessage(message)
     })
     tree.on('end', (execution) => {
       const message = JSON.stringify({
@@ -99,7 +95,7 @@ export class DevtoolsBase {
       })
       this.latestExecutionId = execution.id
 
-      sendExecutionMessage(message)
+      this.sendExecutionMessage(message)
     })
     tree.on('pathStart', (path, execution, funcDetails) => {
       const message = JSON.stringify({
@@ -114,7 +110,7 @@ export class DevtoolsBase {
         }
       })
 
-      sendExecutionMessage(message)
+      this.sendExecutionMessage(message)
     })
     tree.on('functionStart', (execution, funcDetails, payload) => {
       const message = this.safeStringify({
@@ -130,7 +126,7 @@ export class DevtoolsBase {
         }
       })
 
-      sendExecutionMessage(message)
+      this.sendExecutionMessage(message)
     })
     tree.on('functionEnd', (execution, funcDetails, payload, result) => {
       if (!result || (result instanceof Path && !result.payload)) {
@@ -149,7 +145,7 @@ export class DevtoolsBase {
         }
       })
 
-      sendExecutionMessage(message)
+      this.sendExecutionMessage(message)
     })
     tree.on('error', (error, execution, funcDetails) => {
       const message = JSON.stringify({
@@ -169,10 +165,16 @@ export class DevtoolsBase {
         }
       })
 
-      sendExecutionMessage(message)
+      this.sendExecutionMessage(message)
     })
   }
-
+  sendExecutionMessage (message) {
+    if (this.isConnected) {
+      this.sendMessage(message)
+    } else {
+      this.backlog.push(message)
+    }
+  }
   sendInitial () { }
   createExecutionMessage (debuggingData, context, functionDetails, payload) { }
   /*
@@ -184,11 +186,7 @@ export class DevtoolsBase {
   sendExecutionData (debuggingData, context, functionDetails, payload) {
     const message = this.createExecutionMessage(debuggingData, context, functionDetails, payload)
 
-    if (this.isConnected) {
-      this.sendMessage(message)
-    } else {
-      this.backlog.push(message)
-    }
+    this.sendExecutionMessage(message)
   }
 }
 
