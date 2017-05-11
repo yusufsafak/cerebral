@@ -318,6 +318,71 @@ describe('Devtools', () => {
       mockServer.stop(done);
     }, 10);
   })
+  it('should watch function tree execution error', (done) => {
+    const mockServer = new Server('ws://localhost:8585')
+    let messages = {}
+    mockServer.on('connection', (server) => {
+      server.on('message', (event) => {
+        const message = JSON.parse(event)
+        switch (message.type) {
+          case 'pong':
+            server.send(JSON.stringify({type: 'ping'}))
+            break
+          case 'ping':
+            server.send(JSON.stringify({type: 'pong'}))
+            break
+          case 'init':
+            break
+          default:
+            messages[message.type] = message
+            break
+        }
+      })
+    })
+
+    const devtools = new Devtools({
+      remoteDebugger: 'localhost:8585',
+      reconnect: true
+    })
+    const ft = new FunctionTree([])
+    devtools.add(ft)
+
+    function actionA () {
+      return {
+        foo: 'bar'
+      }
+    }
+
+    ft.once('error', (error) => {
+      assert.ok(error.message.match(/needs to be a path of either success/))
+    })
+
+    setTimeout(() => {
+
+      ft.run([
+        actionA, {
+          success: []
+        }
+      ]).catch((error) => {
+        assert.ok(error.message.match(/needs to be a path of either success/))
+      })
+
+      assert.deepEqual(Object.keys(messages), [ 'executionStart', 'executionFunctionStart', 'executionFunctionError' ])
+      assert.ok(messages.executionStart.data.execution)
+      assert.equal(messages.executionStart.source, 'ft')
+
+      assert.ok(messages.executionFunctionStart.data.execution)
+      assert.equal(messages.executionFunctionStart.source, 'ft')
+
+      assert.ok(messages.executionFunctionError.data.execution)
+      assert.equal(messages.executionFunctionError.source, 'ft')
+      assert.equal(messages.executionFunctionError.data.execution.error.name, 'FunctionTreeExecutionError')
+      assert.equal(messages.executionFunctionError.data.execution.error.func, actionA.toString())
+      assert.ok(messages.executionFunctionError.data.execution.error.message.match(/needs to be a path of either success/))
+
+      mockServer.stop(done);
+    }, 10);
+  })
   it('should keep execution messages when debugger is not ready and send all execution messages after debugger is ready', (done) => {
     const mockServer = new Server('ws://localhost:8585')
     let messages = {}
