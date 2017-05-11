@@ -7,13 +7,23 @@ export class Devtools extends DevtoolsBase {
     this.trees = []
     this.latestExecutionId = null
   }
+  onMessage (event) {
+    const message = JSON.parse(event.data)
+    switch (message.type) {
+      case 'pong':
+        this.sendInitial()
+        break
+      case 'ping':
+        this.sendInitial()
+        break
+    }
+  }
   add (tree) {
     this.trees.push(tree)
     tree.contextProviders.unshift(this.Provider())
     this.watchExecution(tree, 'ft')
   }
   remove (tree) {
-    console.log(tree, this.trees.indexOf(tree));
     this.trees.splice(this.trees.indexOf(tree), 1)
     tree.contextProviders.splice(0, 1)
 
@@ -25,8 +35,11 @@ export class Devtools extends DevtoolsBase {
     tree.removeAllListeners('error')
   }
   destroy () {
-    this.trees.forEach((tree) => {
-      console.log(tree)
+    const trees = this.trees.reduce((newTrees, tree) => {
+      newTrees.push(tree)
+      return newTrees
+    }, [])
+    trees.forEach((tree) => {
       this.remove(tree)
     })
   }
@@ -48,9 +61,6 @@ export class Devtools extends DevtoolsBase {
 
       return value
     })
-  }
-  sendMessage (stringifiedMessage) {
-    this.ws.send(stringifiedMessage)
   }
   sendInitial () {
     const message = JSON.stringify({
@@ -92,15 +102,6 @@ export class Devtools extends DevtoolsBase {
       data: data
     })
   }
-  sendExecutionData (debuggingData, context, functionDetails, payload) {
-    const message = this.createExecutionMessage(debuggingData, context, functionDetails, payload)
-
-    if (this.isConnected) {
-      this.sendMessage(message)
-    } else {
-      this.backlog.push(message)
-    }
-  }
   Provider () {
     const sendExecutionData = this.sendExecutionData.bind(this)
     function provider (context, functionDetails, payload) {
@@ -132,20 +133,6 @@ export class Devtools extends DevtoolsBase {
     }
 
     return provider
-  }
-  addListeners () {
-    this.ws = new WebSocket(`ws://${this.remoteDebugger}`)
-    this.ws.onmessage = (event) => {
-      const message = JSON.parse(event.data)
-      switch (message.type) {
-        case 'pong':
-          this.sendInitial()
-          break
-        case 'ping':
-          this.sendInitial()
-          break
-      }
-    }
   }
 }
 
