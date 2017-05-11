@@ -19,12 +19,13 @@ export class DevtoolsBase {
     this.doReconnect = reconnect
 
     this.sendInitial = this.sendInitial.bind(this)
-
-    this.init()
   }
   createSocket () {
     this.ws = new WebSocket(`ws://${this.remoteDebugger}`)
   }
+  /*
+    Sets up the listeners to Chrome Extension or remote debugger
+  */
   addListeners () {
     this.createSocket()
     this.ws.onmessage = this.onMessage.bind(this)
@@ -62,9 +63,18 @@ export class DevtoolsBase {
       }
     }
   }
+  /*
+    Sends message to chrome extension or remote debugger
+  */
   sendMessage (stringifiedMessage) {
     this.ws.send(stringifiedMessage)
   }
+  /*
+    Watches function tree for execution of signals. This is passed to
+    debugger to prevent time travelling when executing. It also tracks
+    latest executed signal for "remember" to know when signals can be
+    called again
+  */
   watchExecution (tree, source) {
     tree.on('start', (execution, payload) => {
       const message = JSON.stringify({

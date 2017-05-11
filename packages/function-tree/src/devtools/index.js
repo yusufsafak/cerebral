@@ -6,6 +6,7 @@ export class Devtools extends DevtoolsBase {
     super(options)
     this.trees = []
     this.latestExecutionId = null
+    this.init()
   }
   onMessage (event) {
     const message = JSON.parse(event.data)
