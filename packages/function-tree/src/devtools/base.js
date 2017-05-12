@@ -20,9 +20,7 @@ export class DevtoolsBase {
 
     this.sendInitial = this.sendInitial.bind(this)
   }
-  createSocket () {
-    this.ws = new WebSocket(`ws://${this.remoteDebugger}`)
-  }
+  createSocket () { }
   /*
     Sets up the listeners to Chrome Extension or remote debugger
   */

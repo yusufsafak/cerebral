@@ -141,7 +141,7 @@ describe('Devtools', () => {
       assert.equal(devtools.isConnected, true)
       console.warn = originWarn
       mockServer.stop(done);
-    }, 1605);
+    }, 1700);
   })
   it('should add function tree', (done) => {
     const mockServer = new Server('ws://localhost:8585')

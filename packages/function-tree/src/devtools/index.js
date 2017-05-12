@@ -8,6 +8,9 @@ export class Devtools extends DevtoolsBase {
     this.latestExecutionId = null
     this.init()
   }
+  createSocket () {
+    this.ws = new WebSocket(`ws://${this.remoteDebugger}`)
+  }
   onMessage (event) {
     const message = JSON.parse(event.data)
     switch (message.type) {
