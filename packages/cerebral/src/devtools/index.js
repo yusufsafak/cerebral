@@ -18,12 +18,13 @@ export class Devtools extends DevtoolsBase {
     bigComponentsWarning = 10,
     remoteDebugger = null,
     reconnect = true,
+    reconnectInterval = 5000,
     allowedTypes = []
   } = {}) {
     super({
       remoteDebugger,
       reconnect,
-      reconnectInterval: 5000
+      reconnectInterval
     })
     this.debuggerComponentsMap = {}
     this.debuggerComponentDetailsId = 1
@@ -43,7 +44,7 @@ export class Devtools extends DevtoolsBase {
       .concat(typeof Blob === 'undefined' ? [] : Blob)
       .concat(typeof ImageData === 'undefined' ? [] : ImageData)
       .concat(typeof RegExp === 'undefined' ? [] : RegExp)
-      .concat(options.allowedTypes || [])
+      .concat(allowedTypes || [])
 
     this.sendInitial = this.sendInitial.bind(this)
     this.sendComponentsMap = delay(this.sendComponentsMap, 50)
@@ -88,7 +89,9 @@ export class Devtools extends DevtoolsBase {
     this.mutations = []
     this.controller.flush(true)
   }
-
+  createSocket () {
+    this.ws = new WebSocket(`ws://${this.remoteDebugger}`)
+  }
   onMessage (event) {
     const message = JSON.parse(event.data)
     switch (message.type) {

@@ -1,8 +1,16 @@
 /* eslint-env mocha */
-import { WebSocket, Server } from 'mock-socket'
-import Devtools from './'
+'use strict'
+
 import assert from 'assert'
+import {state, signal, props} from '../tags'
+import {compute} from '../'
+import {Container, StateContainer, connect, decorator} from '../viewFactories/react'
+import { WebSocket, Server } from 'mock-socket'
+import {Devtools} from './'
 import Controller from '../Controller'
+import React from 'react'
+import ReactDOM from 'react-dom'
+import TestUtils from 'react-addons-test-utils'
 
 Devtools.prototype.createSocket = function () {
   this.ws = new WebSocket(`ws://${this.remoteDebugger}`)
@@ -10,39 +18,16 @@ Devtools.prototype.createSocket = function () {
 
 
 describe('Devtools', () => {
-  it.only('should throw when remoteDebugger is not set', () => {
+  it('should throw when remoteDebugger is not set', () => {
     assert.throws(() => {
-      const devtools = new Devtools()
+      const devtools = new Devtools({})
     }, (err) => {
       if (err instanceof Error) {
         return err.message === 'Function-tree DevtoolsBase: You have to pass in the "remoteDebugger" option'
       }
     })
   })
-  /*it('should init correctly', (done) => {
-    const mockServer = new Server('ws://localhost:8585')
-    mockServer.on('connection', (server) => {
-      server.on('message', (event) => {
-        const message = JSON.parse(event)
-        // client send ping
-        assert.equal(message.type, 'ping')
-      })
-      assert.ok(server)
-    })
-
-    const devtools = new Devtools({
-      remoteDebugger: 'localhost:8585',
-      reconnect: true
-    })
-    setTimeout(() => {
-      assert.equal(devtools.isConnected, false)
-      assert.equal(devtools.reconnectInterval, 5000)
-      assert.equal(devtools.doReconnect, true)
-      mockServer.stop(done);
-    }, 10);
-  })
-
-  it('should work when debugger is open when app loads', (done) => {
+  it('should init correctly and work when debugger is open when app loads', (done) => {
     const mockServer = new Server('ws://localhost:8585')
     let messages = []
     mockServer.on('connection', (server) => {
@@ -59,14 +44,29 @@ describe('Devtools', () => {
         }
       })
     })
-
-    const devtools = new Devtools({
-      remoteDebugger: 'localhost:8585',
-      reconnect: true
+    const controller = new Controller({
+      devtools: new Devtools({
+        remoteDebugger: 'localhost:8585',
+        reconnect: true
+      })
     })
+    assert.equal(controller.devtools.isConnected, false)
     setTimeout(() => {
-      assert.deepEqual(messages, ['ping', 'init'])
-      assert.equal(devtools.isConnected, true)
+      assert.deepEqual(messages, ['ping', 'init', 'bulk', 'components'])
+      assert.equal(controller.devtools.isConnected, true)
+      assert.equal(controller.devtools.reconnectInterval, 5000)
+      assert.equal(controller.devtools.doReconnect, true)
+      assert.deepEqual(controller.devtools.debuggerComponentsMap, {})
+      assert.equal(controller.devtools.debuggerComponentDetailsId, 1)
+      assert.equal(controller.devtools.storeMutations, true)
+      assert.equal(controller.devtools.preventExternalMutations, true)
+      assert.equal(controller.devtools.preventPropsReplacement, false)
+      assert.equal(controller.devtools.bigComponentsWarning, 10)
+
+      assert.deepEqual(controller.devtools.controller, controller)
+      assert.deepEqual(controller.devtools.originalRunTreeFunction, controller.run)
+      assert.equal(controller.devtools.isResettingDebugger, false)
+      assert.equal(controller.devtools.initialModelString, JSON.stringify(controller.model.get()))
       mockServer.stop(done);
     }, 10);
   })
@@ -102,7 +102,7 @@ describe('Devtools', () => {
       mockServer.stop(done);
     }, 1500);
   }) */
-  /* it('should warn and try to reconnect to Debugger', (done) => {
+  it('should warn and try to reconnect to Debugger', (done) => {
     let warnCount = 0
     const originWarn = console.warn
     console.warn = function (...args) {
@@ -110,10 +110,13 @@ describe('Devtools', () => {
       assert.equal(args[0], 'Debugger application is not running on selected port... will reconnect automatically behind the scenes')
       originWarn.apply(this, args)
     }
-    const devtools = new Devtools({
-      remoteDebugger: 'localhost:8585',
-      reconnectInterval: 800
+    const controller = new Controller({
+      devtools: new Devtools({
+        remoteDebugger: 'localhost:8585',
+        reconnectInterval: 800
+      })
     })
+    assert.equal(controller.devtools.isConnected, false)
     let mockServer
     let messages = []
     setTimeout(() => {
@@ -135,116 +138,14 @@ describe('Devtools', () => {
     }, 700)
 
     setTimeout(() => {
-      assert.deepEqual(messages, ['ping', 'init'])
+      assert.deepEqual(messages, ['ping', 'init', 'bulk', 'components'])
       assert.equal(warnCount, 1)
-      assert.equal(devtools.isConnected, true)
+      assert.equal(controller.devtools.isConnected, true)
       console.warn = originWarn
       mockServer.stop(done);
-    }, 1605);
+    }, 1700);
   })
-  it('should add function tree', (done) => {
-    const mockServer = new Server('ws://localhost:8585')
-    mockServer.on('connection', (server) => {
-      server.on('message', (event) => {
-        const message = JSON.parse(event)
-        switch (message.type) {
-          case 'pong':
-            server.send(JSON.stringify({type: 'ping'}))
-            break
-          case 'ping':
-            server.send(JSON.stringify({type: 'pong'}))
-            break
-        }
-      })
-    })
-
-    const devtools = new Devtools({
-      remoteDebugger: 'localhost:8585',
-      reconnect: true
-    })
-
-    setTimeout(() => {
-      const ft = new FunctionTree([])
-      assert.equal(ft.contextProviders.length, 0)
-      devtools.add(ft)
-      assert.equal(ft.contextProviders.length, 1)
-      assert.equal(devtools.trees.length, 1)
-      assert.deepEqual(devtools.trees[0], ft)
-      assert.equal(devtools.isConnected, true)
-      mockServer.stop(done);
-    }, 10);
-  })
-  it('should remove function tree', (done) => {
-    const mockServer = new Server('ws://localhost:8585')
-    mockServer.on('connection', (server) => {
-      server.on('message', (event) => {
-        const message = JSON.parse(event)
-        switch (message.type) {
-          case 'pong':
-            server.send(JSON.stringify({type: 'ping'}))
-            break
-          case 'ping':
-            server.send(JSON.stringify({type: 'pong'}))
-            break
-        }
-      })
-    })
-
-    const devtools = new Devtools({
-      remoteDebugger: 'localhost:8585',
-      reconnect: true
-    })
-
-    setTimeout(() => {
-      const ft = new FunctionTree([])
-      devtools.add(ft)
-      devtools.remove(ft)
-      assert.equal(ft.contextProviders.length, 0)
-      assert.equal(devtools.trees.length, 0)
-      assert.equal(devtools.isConnected, true)
-      mockServer.stop(done);
-    }, 10);
-  })
-  it('should remove all trees using destroy method', (done) => {
-    const mockServer = new Server('ws://localhost:8585')
-    mockServer.on('connection', (server) => {
-      server.on('message', (event) => {
-        const message = JSON.parse(event)
-        switch (message.type) {
-          case 'pong':
-            server.send(JSON.stringify({type: 'ping'}))
-            break
-          case 'ping':
-            server.send(JSON.stringify({type: 'pong'}))
-            break
-        }
-      })
-    })
-
-    const devtools = new Devtools({
-      remoteDebugger: 'localhost:8585',
-      reconnect: true
-    })
-
-    setTimeout(() => {
-      const ftA = new FunctionTree()
-      ftA.type = 'A'
-      devtools.add(ftA)
-      assert.equal(ftA.contextProviders.length, 1)
-      assert.equal(devtools.trees.length, 1)
-      const ftB = new FunctionTree()
-      ftB.type = 'B'
-      devtools.add(ftB)
-      assert.equal(ftB.contextProviders.length, 1)
-      assert.equal(devtools.trees.length, 2)
-      devtools.destroy()
-      assert.equal(ftA.contextProviders.length, 0)
-      assert.equal(ftB.contextProviders.length, 0)
-      assert.equal(devtools.trees.length, 0)
-      assert.equal(devtools.isConnected, true)
-      mockServer.stop(done);
-    }, 10);
-  })
+  /*
   it('should watch function tree executions', (done) => {
     const mockServer = new Server('ws://localhost:8585')
     let messages = {}
