@@ -6,6 +6,7 @@ export class Devtools extends DevtoolsBase {
     super(options)
     this.trees = []
     this.latestExecutionId = null
+    this.version = VERSION
     this.init()
   }
   createSocket () {
@@ -38,7 +39,7 @@ export class Devtools extends DevtoolsBase {
     tree.removeAllListeners('functionEnd')
     tree.removeAllListeners('error')
   }
-  destroy () {
+  removeAll () {
     const trees = this.trees.reduce((newTrees, tree) => {
       newTrees.push(tree)
       return newTrees
@@ -47,38 +48,18 @@ export class Devtools extends DevtoolsBase {
       this.remove(tree)
     })
   }
-  safeStringify (object) {
-    const refs = []
-
-    return JSON.stringify(object, (key, value) => {
-      const isObject = (
-        typeof value === 'object' &&
-        value !== null &&
-        !Array.isArray(value)
-      )
-
-      if (isObject && refs.indexOf(value) > -1) {
-        return '[CIRCULAR]'
-      } else if (isObject) {
-        refs.push(value)
-      }
-
-      return value
-    })
-  }
   sendInitial () {
     const message = JSON.stringify({
       type: 'init',
       source: 'ft',
-      version: VERSION, // eslint-disable-line
+      version: this.version
     })
 
     this.sendMessage(message)
-    this.backlog.forEach((backlogItem) => {
-      this.sendMessage(backlogItem)
-    })
-
-    this.backlog = []
+    if (this.backlog.length) {
+      this.sendBulkMessage(this.backlog, 'ft')
+      this.backlog = []
+    }
     this.isConnected = true
   }
   /*
@@ -102,7 +83,7 @@ export class Devtools extends DevtoolsBase {
     return this.safeStringify({
       type: type,
       source: 'ft',
-      version: VERSION, // eslint-disable-line
+      version: this.version,
       data: data
     })
   }

@@ -16,7 +16,7 @@ describe('Devtools', () => {
         const devtools = new Devtools()
       }, (err) => {
         if (err instanceof Error) {
-          return err.message === 'Function-tree DevtoolsBase: You have to pass in the "remoteDebugger" option'
+          return err.message === 'Devtools: You have to pass in the "remoteDebugger" option'
         }
       })
     })
@@ -43,7 +43,7 @@ describe('Devtools', () => {
       mockServer.stop(done);
     }, 10);
   })
-  it('should work when debugger is open when app loads', (done) => {
+  it('should work when debugger is already opened', (done) => {
     const mockServer = new Server('ws://localhost:8585')
     let messages = []
     mockServer.on('connection', (server) => {
@@ -103,7 +103,7 @@ describe('Devtools', () => {
       mockServer.stop(done);
     }, 1500);
   }) */
-  it('should warn and try to reconnect to Debugger', (done) => {
+  it('should warn and reconnect to Debugger', (done) => {
     let warnCount = 0
     const originWarn = console.warn
     console.warn = function (...args) {
@@ -206,7 +206,7 @@ describe('Devtools', () => {
       mockServer.stop(done);
     }, 10);
   })
-  it('should remove all trees using destroy method', (done) => {
+  it('should remove all trees', (done) => {
     const mockServer = new Server('ws://localhost:8585')
     mockServer.on('connection', (server) => {
       server.on('message', (event) => {
@@ -238,7 +238,7 @@ describe('Devtools', () => {
       devtools.add(ftB)
       assert.equal(ftB.contextProviders.length, 1)
       assert.equal(devtools.trees.length, 2)
-      devtools.destroy()
+      devtools.removeAll()
       assert.equal(ftA.contextProviders.length, 0)
       assert.equal(ftB.contextProviders.length, 0)
       assert.equal(devtools.trees.length, 0)
@@ -383,7 +383,7 @@ describe('Devtools', () => {
       mockServer.stop(done);
     }, 10);
   })
-  it('should keep execution messages when debugger is not ready and send all execution messages after debugger is ready', (done) => {
+  it('should keep execution messages when debugger is not ready and send bulk messages after debugger is ready', (done) => {
     const mockServer = new Server('ws://localhost:8585')
     let messages = {}
     mockServer.on('connection', (server) => {
@@ -431,24 +431,42 @@ describe('Devtools', () => {
     })
 
     setTimeout(() => {
-      assert.deepEqual(Object.keys(messages), [ 'executionStart', 'executionFunctionStart', 'executionPathStart', 'executionFunctionEnd', 'executionEnd' ])
-      assert.ok(messages.executionStart.data.execution)
-      assert.equal(messages.executionStart.source, 'ft')
+      assert.deepEqual(Object.keys(messages), [ 'bulk' ])
+      assert.equal(messages.bulk.data.messages.length, 6)
 
-      assert.ok(messages.executionFunctionStart.data.execution)
-      assert.equal(messages.executionFunctionStart.source, 'ft')
-      assert.deepEqual(messages.executionFunctionStart.data.execution.payload, { foo: 'bar' })
+      const executionStartMessage = JSON.parse(messages.bulk.data.messages[0])
+      assert.equal(executionStartMessage.type, 'executionStart')
+      assert.ok(executionStartMessage.data.execution)
+      assert.equal(executionStartMessage.source, 'ft')
 
-      assert.ok(messages.executionPathStart.data.execution)
-      assert.equal(messages.executionPathStart.source, 'ft')
-      assert.equal(messages.executionPathStart.data.execution.path, 'success')
+      let executionFunctionStartMessage = JSON.parse(messages.bulk.data.messages[1])
+      assert.equal(executionFunctionStartMessage.type, 'executionFunctionStart')
+      assert.ok(executionFunctionStartMessage.data.execution)
+      assert.equal(executionFunctionStartMessage.source, 'ft')
+      assert.deepEqual(executionFunctionStartMessage.data.execution.payload, { foo: 'bar' })
 
-      assert.ok(messages.executionFunctionEnd.data.execution)
-      assert.equal(messages.executionFunctionEnd.source, 'ft')
-      assert.deepEqual(messages.executionFunctionEnd.data.execution.output, { bar: 'baz' })
+      const executionPathStartMessage = JSON.parse(messages.bulk.data.messages[2])
+      assert.equal(executionPathStartMessage.type, 'executionPathStart')
+      assert.ok(executionPathStartMessage.data.execution)
+      assert.equal(executionPathStartMessage.source, 'ft')
+      assert.equal(executionPathStartMessage.data.execution.path, 'success')
 
-      assert.ok(messages.executionEnd.data.execution)
-      assert.equal(messages.executionEnd.source, 'ft')
+      executionFunctionStartMessage = JSON.parse(messages.bulk.data.messages[3])
+      assert.equal(executionFunctionStartMessage.type, 'executionFunctionStart')
+      assert.ok(executionFunctionStartMessage.data.execution)
+      assert.equal(executionFunctionStartMessage.source, 'ft')
+      assert.deepEqual(executionFunctionStartMessage.data.execution.payload, { foo: 'bar' })
+
+      const executionFunctionEndMessage = JSON.parse(messages.bulk.data.messages[4])
+      assert.equal(executionFunctionEndMessage.type, 'executionFunctionEnd')
+      assert.ok(executionFunctionEndMessage.data.execution)
+      assert.equal(executionFunctionEndMessage.source, 'ft')
+      assert.deepEqual(executionFunctionEndMessage.data.execution.output, { bar: 'baz' })
+
+      const executionEndMessage = JSON.parse(messages.bulk.data.messages[5])
+      assert.equal(executionEndMessage.type, 'executionEnd')
+      assert.ok(executionEndMessage.data.execution)
+      assert.equal(executionEndMessage.source, 'ft')
 
       mockServer.stop(done);
     }, 10);

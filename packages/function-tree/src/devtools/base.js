@@ -7,11 +7,10 @@ export class DevtoolsBase {
     reconnectInterval = 10000
   } = {}) {
     this.remoteDebugger = remoteDebugger
-
+    this.version = 0
     if (!this.remoteDebugger) {
-      throw new Error('Function-tree DevtoolsBase: You have to pass in the "remoteDebugger" option')
+      throw new Error(`Devtools: You have to pass in the "remoteDebugger" option`)
     }
-
     this.backlog = []
     this.isConnected = false
     this.ws = null
@@ -68,6 +67,22 @@ export class DevtoolsBase {
     this.ws.send(stringifiedMessage)
   }
   /*
+    Sends multiple message in one batch to debugger, causing debugger
+    also to synchronously run all updates before rendering
+  */
+  sendBulkMessage (messages, source) {
+    const message = JSON.stringify({
+      type: 'bulk',
+      source,
+      version: this.version, // eslint-disable-line
+      data: {
+        messages
+      }
+    })
+
+    this.sendMessage(message)
+  }
+  /*
     Watches function tree for execution of signals. This is passed to
     debugger to prevent time travelling when executing. It also tracks
     latest executed signal for "remember" to know when signals can be
@@ -78,6 +93,7 @@ export class DevtoolsBase {
       const message = JSON.stringify({
         type: 'executionStart',
         source: source,
+        version: this.version,
         data: {
           execution: {
             executionId: execution.id,
@@ -95,6 +111,7 @@ export class DevtoolsBase {
       const message = JSON.stringify({
         type: 'executionEnd',
         source: source,
+        version: this.version,
         data: {
           execution: {
             executionId: execution.id
@@ -109,6 +126,7 @@ export class DevtoolsBase {
       const message = JSON.stringify({
         type: 'executionPathStart',
         source: source,
+        version: this.version,
         data: {
           execution: {
             executionId: execution.id,
@@ -124,6 +142,7 @@ export class DevtoolsBase {
       const message = this.safeStringify({
         type: 'executionFunctionStart',
         source: source,
+        version: this.version,
         data: {
           execution: {
             executionId: execution.id,
@@ -144,6 +163,7 @@ export class DevtoolsBase {
       const message = this.safeStringify({
         type: 'executionFunctionEnd',
         source: source,
+        version: this.version,
         data: {
           execution: {
             executionId: execution.id,
@@ -159,6 +179,7 @@ export class DevtoolsBase {
       const message = JSON.stringify({
         type: 'executionFunctionError',
         source: source,
+        version: this.version,
         data: {
           execution: {
             executionId: execution.id,
@@ -174,6 +195,26 @@ export class DevtoolsBase {
       })
 
       this.sendExecutionMessage(message)
+    })
+  }
+  //TODO why it is not in cerebral
+  safeStringify (object) {
+    const refs = []
+
+    return JSON.stringify(object, (key, value) => {
+      const isObject = (
+        typeof value === 'object' &&
+        value !== null &&
+        !Array.isArray(value)
+      )
+
+      if (isObject && refs.indexOf(value) > -1) {
+        return '[CIRCULAR]'
+      } else if (isObject) {
+        refs.push(value)
+      }
+
+      return value
     })
   }
   sendExecutionMessage (message) {
