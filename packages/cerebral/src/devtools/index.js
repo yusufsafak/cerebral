@@ -26,6 +26,7 @@ export class Devtools extends DevtoolsBase {
       reconnect,
       reconnectInterval
     })
+    this.version = VERSION
     this.debuggerComponentsMap = {}
     this.debuggerComponentDetailsId = 1
     this.storeMutations = storeMutations
@@ -102,8 +103,10 @@ export class Devtools extends DevtoolsBase {
       case 'remember':
         if (!this.storeMutations) {
           console.warn('Cerebral Devtools - You tried to time travel, but you have turned of storing of mutations')
+        } else {
+          //TODO should we emit remember message???? throw error there are no mutations
+          this.remember(message.data)
         }
-        this.remember(message.data)
         break
       case 'reset':
         this.reset()
@@ -115,11 +118,6 @@ export class Devtools extends DevtoolsBase {
         this.sendInitial()
         break
     }
-  }
-  reconnect () {
-    setTimeout(() => {
-      this.init(this.controller)
-    }, this.reconnectInterval)
   }
   /*
     The debugger might be ready or it might not. The initial communication
@@ -134,33 +132,16 @@ export class Devtools extends DevtoolsBase {
       - Devtools sends "init"
   */
   init (controller) {
-    this.controller = controller
-    this.originalRunTreeFunction = controller.run
+    this.controller = controller || this.controller
+    this.originalRunTreeFunction = this.controller.run
 
     if (this.storeMutations) {
-      this.initialModelString = JSON.stringify(controller.model.get())
+      this.initialModelString = JSON.stringify(this.controller.model.get())
     }
 
     super.init()
     // TODO: maybe bug
     this.watchExecution(this.controller, 'c')
-  }
-  /*
-    Sends multiple message in one batch to debugger, causing debugger
-    also to synchronously run all updates before rendering
-  */
-  /* TODO: function-tree debugger ??? */
-  sendBulkMessage (messages) {
-    const message = JSON.stringify({
-      type: 'bulk',
-      source: 'c',
-      version: VERSION, // eslint-disable-line
-      data: {
-        messages
-      }
-    })
-
-    this.sendMessage(message)
   }
   /*
     Send initial model. If model has already been stringified we reuse it. Any
@@ -171,7 +152,7 @@ export class Devtools extends DevtoolsBase {
     const message = JSON.stringify({
       type: 'init',
       source: 'c',
-      version: VERSION, // eslint-disable-line
+      version: this.version,
       data: {
         initialModel: this.initialModelString ? PLACEHOLDER_INITIAL_MODEL : initialModel
       }
@@ -179,7 +160,7 @@ export class Devtools extends DevtoolsBase {
 
     this.isResettingDebugger = true
     this.sendMessage(message)
-    this.sendBulkMessage(this.backlog)
+    this.sendBulkMessage(this.backlog, 'c')
     this.isResettingDebugger = false
 
     this.backlog = []
@@ -189,6 +170,7 @@ export class Devtools extends DevtoolsBase {
     this.sendMessage(JSON.stringify({
       type: 'components',
       source: 'c',
+      version: this.version,
       data: {
         map: this.debuggerComponentsMap,
         render: {
@@ -231,7 +213,7 @@ export class Devtools extends DevtoolsBase {
     return JSON.stringify({
       type: type,
       source: 'c',
-      version: VERSION, // eslint-disable-line
+      version: this.version,
       data: data
     }).replace(`"${PLACEHOLDER_DEBUGGING_DATA}"`, mutationString)
   }
@@ -244,7 +226,7 @@ export class Devtools extends DevtoolsBase {
   }
   /*
     Updates the map the represents what active state paths and
-    components are in your app. Used by the debugger
+    components are in your app.Called from Controller. Used by the debugger
   */
   updateComponentsMap (component, nextDeps, prevDeps) {
     const componentDetails = {
@@ -297,6 +279,7 @@ export class Devtools extends DevtoolsBase {
       this.sendMessage(JSON.stringify({
         type: 'components',
         source: 'c',
+        version: this.version,
         data: {
           map: this.debuggerComponentsMap,
           render: {

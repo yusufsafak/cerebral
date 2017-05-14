@@ -11,6 +11,8 @@ import Controller from '../Controller'
 import React from 'react'
 import ReactDOM from 'react-dom'
 import TestUtils from 'react-addons-test-utils'
+const version = VERSION // eslint-disable-line
+import {FunctionTreeExecutionError} from 'function-tree/lib/errors'
 
 Devtools.prototype.createSocket = function () {
   this.ws = new WebSocket(`ws://${this.remoteDebugger}`)
@@ -145,13 +147,13 @@ describe('Devtools', () => {
       mockServer.stop(done);
     }, 1700);
   })
-  /*
-  it('should watch function tree executions', (done) => {
+  it('should set component details and watch executions', (done) => {
     const mockServer = new Server('ws://localhost:8585')
-    let messages = {}
+    let messages = {}, messageTypes = []
     mockServer.on('connection', (server) => {
       server.on('message', (event) => {
         const message = JSON.parse(event)
+        messageTypes.push(message.type)
         switch (message.type) {
           case 'pong':
             server.send(JSON.stringify({type: 'ping'}))
@@ -167,16 +169,10 @@ describe('Devtools', () => {
         }
       })
     })
-
-    const devtools = new Devtools({
-      remoteDebugger: 'localhost:8585',
-      reconnect: true
-    })
-    const ft = new FunctionTree([])
-    devtools.add(ft)
-
-    function actionA ({path}) {
+    function actionA ({path, state}) {
       assert.ok(true)
+      //execution send :)
+      state.set('foo', 'foo')
       return path.success()
     }
     function actionB () {
@@ -184,46 +180,110 @@ describe('Devtools', () => {
       return { bar: 'baz' }
     }
 
+    const controller = Controller({
+      devtools: new Devtools({
+        remoteDebugger: 'localhost:8585'
+      }),
+      state: {
+        foo: 'bar',
+        bar: 'foo'
+      },
+      signals: {
+        test: [
+          actionA, {
+            success: [
+              actionB
+            ]
+          }
+        ]
+      }
+    })
+    const TestComponent = connect({
+      foo: state`foo`,
+      bar: state`bar`,
+      test: signal`test`
+    }, (props) => {
+      return (
+        <div>{props.foo}</div>
+      )
+    })
+    TestComponent.displayName = "TestComponent"
+    const tree = TestUtils.renderIntoDocument((
+      <Container controller={controller}>
+        <TestComponent />
+      </Container>
+    ))
+    assert.equal(TestUtils.findRenderedDOMComponentWithTag(tree, 'div').innerHTML, 'bar')
+
     setTimeout(() => {
 
-      ft.run([
-        actionA, {
-          success: [
-            actionB
-          ]
-        }
-      ], {
+      assert.deepEqual(messageTypes, ['ping', 'init', 'bulk', 'components'])
+      assert.equal(controller.devtools.isConnected, true)
+
+      assert.deepEqual(controller.devtools.debuggerComponentsMap.foo, [{ name: 'TestComponent', renderCount: 0, id: 1 }])
+      assert.deepEqual(controller.devtools.debuggerComponentsMap.bar, [{ name: 'TestComponent', renderCount: 0, id: 1 }])
+      assert.equal(controller.devtools.debuggerComponentsMap.test, undefined)
+
+      assert.equal(messages.components.source, 'c')
+      assert.deepEqual(messages.components.data.map.foo, [{ name: 'TestComponent', renderCount: 0, id: 1 }])
+      assert.deepEqual(messages.components.data.map.bar, [{ name: 'TestComponent', renderCount: 0, id: 1 }])
+      //TODO: why???bugg?
+      assert.deepEqual(messages.components.data.render, { components: [] })
+
+      assert.equal(messages.bulk.source, 'c')
+      assert.equal(messages.bulk.version, version)
+      assert.deepEqual(messages.bulk.data.messages, [])
+
+      controller.getSignal('test')({
         foo: 'bar'
       })
 
-      assert.deepEqual(Object.keys(messages), [ 'executionStart', 'executionFunctionStart', 'executionPathStart', 'executionFunctionEnd', 'executionEnd' ])
+      assert.deepEqual(controller.devtools.debuggerComponentsMap.foo, [{ name: 'TestComponent', renderCount: 1, id: 1 }])
+      assert.deepEqual(controller.devtools.debuggerComponentsMap.bar, [{ name: 'TestComponent', renderCount: 1, id: 1 }])
+      assert.equal(controller.devtools.debuggerComponentsMap.test, undefined)
+
+
+      assert.deepEqual(messageTypes, ['ping', 'init', 'bulk', 'components', 'executionStart', 'executionFunctionStart', 'execution', 'executionPathStart', 'executionFunctionStart', 'executionFunctionEnd', 'executionEnd'])
       assert.ok(messages.executionStart.data.execution)
-      assert.equal(messages.executionStart.source, 'ft')
+      assert.equal(messages.executionStart.source, 'c')
 
       assert.ok(messages.executionFunctionStart.data.execution)
-      assert.equal(messages.executionFunctionStart.source, 'ft')
+      assert.equal(messages.executionFunctionStart.source, 'c')
+      assert.equal(messages.executionFunctionStart.version, version)
       assert.deepEqual(messages.executionFunctionStart.data.execution.payload, { foo: 'bar' })
 
+      assert.ok(messages.execution.data.execution)
+      assert.equal(messages.execution.source, 'c')
+      assert.equal(messages.execution.version, version)
+      assert.deepEqual(messages.execution.data.execution.payload, { foo: 'bar' })
+      assert.equal(messages.execution.data.execution.data.method, 'set')
+      assert.deepEqual(messages.execution.data.execution.data.args, [ [ 'foo' ], 'foo' ])
+      assert.equal(messages.execution.data.execution.data.type, 'mutation')
+      assert.equal(messages.execution.data.execution.data.color, '#333')
+
       assert.ok(messages.executionPathStart.data.execution)
-      assert.equal(messages.executionPathStart.source, 'ft')
+      assert.equal(messages.executionPathStart.source, 'c')
+      assert.equal(messages.executionPathStart.version, version)
       assert.equal(messages.executionPathStart.data.execution.path, 'success')
 
       assert.ok(messages.executionFunctionEnd.data.execution)
-      assert.equal(messages.executionFunctionEnd.source, 'ft')
+      assert.equal(messages.executionFunctionEnd.source, 'c')
+      assert.equal(messages.executionFunctionEnd.version, version)
       assert.deepEqual(messages.executionFunctionEnd.data.execution.output, { bar: 'baz' })
 
       assert.ok(messages.executionEnd.data.execution)
-      assert.equal(messages.executionEnd.source, 'ft')
-
+      assert.equal(messages.executionEnd.version, version)
+      assert.equal(messages.executionEnd.source, 'c')
       mockServer.stop(done);
-    }, 10);
+    }, 150);
   })
-  it('should watch function tree execution error', (done) => {
+  it('should watch signal execution error', (done) => {
     const mockServer = new Server('ws://localhost:8585')
-    let messages = {}
+    let messages = {}, messageTypes = []
     mockServer.on('connection', (server) => {
       server.on('message', (event) => {
         const message = JSON.parse(event)
+        messageTypes.push(message.type)
         switch (message.type) {
           case 'pong':
             server.send(JSON.stringify({type: 'ping'}))
@@ -239,56 +299,69 @@ describe('Devtools', () => {
         }
       })
     })
-
-    const devtools = new Devtools({
-      remoteDebugger: 'localhost:8585',
-      reconnect: true
-    })
-    const ft = new FunctionTree([])
-    devtools.add(ft)
-
     function actionA () {
       return {
         foo: 'bar'
       }
     }
 
-    ft.once('error', (error) => {
-      assert.ok(error.message.match(/needs to be a path of either success/))
+    const controller = Controller({
+      devtools: new Devtools({
+        remoteDebugger: 'localhost:8585'
+      }),
+      state: {
+        foo: 'bar',
+        bar: 'foo'
+      },
+      signals: {
+        test: [
+          actionA, {
+            success: []
+          }
+        ]
+      },
+      catch: new Map([
+        [FunctionTreeExecutionError, [
+          ({props}) => {
+            assert.ok(props.error.message.match(/needs to be a path of either success/))
+          }
+        ]]
+      ])
     })
+    const TestComponent = connect({
+      foo: state`foo`,
+      bar: state`bar`,
+      test: signal`test`
+    }, (props) => {
+      return (
+        <div>{props.foo}</div>
+      )
+    })
+    TestComponent.displayName = "TestComponent"
+    const tree = TestUtils.renderIntoDocument((
+      <Container controller={controller}>
+        <TestComponent />
+      </Container>
+    ))
+    assert.equal(TestUtils.findRenderedDOMComponentWithTag(tree, 'div').innerHTML, 'bar')
+
 
     setTimeout(() => {
+      controller.getSignal('test')()
 
-      ft.run([
-        actionA, {
-          success: []
-        }
-      ]).catch((error) => {
-        assert.ok(error.message.match(/needs to be a path of either success/))
-      })
-
-      assert.deepEqual(Object.keys(messages), [ 'executionStart', 'executionFunctionStart', 'executionFunctionError' ])
-      assert.ok(messages.executionStart.data.execution)
-      assert.equal(messages.executionStart.source, 'ft')
-
-      assert.ok(messages.executionFunctionStart.data.execution)
-      assert.equal(messages.executionFunctionStart.source, 'ft')
-
-      assert.ok(messages.executionFunctionError.data.execution)
-      assert.equal(messages.executionFunctionError.source, 'ft')
-      assert.equal(messages.executionFunctionError.data.execution.error.name, 'FunctionTreeExecutionError')
-      assert.equal(messages.executionFunctionError.data.execution.error.func, actionA.toString())
-      assert.ok(messages.executionFunctionError.data.execution.error.message.match(/needs to be a path of either success/))
-
+      assert.deepEqual(messageTypes, [ 'ping', 'init', 'bulk', 'components', 'executionStart', 'executionFunctionStart', 'executionFunctionError',
+      // catch signal called
+      'executionStart', 'executionFunctionStart', 'executionEnd' ])
       mockServer.stop(done);
     }, 10);
   })
-  it('should keep execution messages when debugger is not ready and send all execution messages after debugger is ready', (done) => {
+  it('should reset', (done) => {
     const mockServer = new Server('ws://localhost:8585')
-    let messages = {}
+    let messages = {}, messageTypes = []
     mockServer.on('connection', (server) => {
       server.on('message', (event) => {
         const message = JSON.parse(event)
+        messageTypes.push(message.type)
         switch (message.type) {
           case 'pong':
             server.send(JSON.stringify({type: 'ping'}))
@@ -303,62 +376,140 @@ describe('Devtools', () => {
             break
         }
       })
+      setTimeout(() => {
+        server.send(JSON.stringify({type: 'reset'}))
+      }, 600)
     })
-
-    const devtools = new Devtools({
-      remoteDebugger: 'localhost:8585',
-      reconnect: true
-    })
-    const ft = new FunctionTree([])
-    devtools.add(ft)
-
-    function actionA ({path}) {
-      assert.ok(true)
+    function actionA ({path, state}) {
+      state.set('foo', 'foo')
       return path.success()
     }
     function actionB () {
-      assert.ok(true)
       return { bar: 'baz' }
     }
-    ft.run([
-      actionA, {
-        success: [
-          actionB
+
+    const controller = Controller({
+      devtools: new Devtools({
+        remoteDebugger: 'localhost:8585'
+      }),
+      state: {
+        foo: 'bar',
+        bar: 'foo'
+      },
+      signals: {
+        test: [
+          actionA, {
+            success: [
+              actionB
+            ]
+          }
         ]
       }
-    ], {
-      foo: 'bar'
     })
+    const TestComponent = connect({
+      foo: state`foo`,
+      bar: state`bar`,
+      test: signal`test`
+    }, (props) => {
+      return (
+        <div>{props.foo}</div>
+      )
+    })
+    TestComponent.displayName = "TestComponent"
+    const tree = TestUtils.renderIntoDocument((
+      <Container controller={controller}>
+        <TestComponent />
+      </Container>
+    ))
+    assert.equal(TestUtils.findRenderedDOMComponentWithTag(tree, 'div').innerHTML, 'bar')
 
     setTimeout(() => {
-      assert.deepEqual(Object.keys(messages), [ 'executionStart', 'executionFunctionStart', 'executionPathStart', 'executionFunctionEnd', 'executionEnd' ])
-      assert.ok(messages.executionStart.data.execution)
-      assert.equal(messages.executionStart.source, 'ft')
+      assert.deepEqual(JSON.parse(controller.devtools.initialModelString), {
+        foo: 'bar',
+        bar: 'foo'
+      })
+      assert.equal(controller.devtools.isConnected, true)
 
-      assert.ok(messages.executionFunctionStart.data.execution)
-      assert.equal(messages.executionFunctionStart.source, 'ft')
-      assert.deepEqual(messages.executionFunctionStart.data.execution.payload, { foo: 'bar' })
+      assert.deepEqual(controller.devtools.debuggerComponentsMap.foo, [{ name: 'TestComponent', renderCount: 0, id: 1 }])
+      assert.deepEqual(controller.devtools.debuggerComponentsMap.bar, [{ name: 'TestComponent', renderCount: 0, id: 1 }])
+      assert.equal(controller.devtools.debuggerComponentsMap.test, undefined)
 
-      assert.ok(messages.executionPathStart.data.execution)
-      assert.equal(messages.executionPathStart.source, 'ft')
-      assert.equal(messages.executionPathStart.data.execution.path, 'success')
+      controller.getSignal('test')({
+        foo: 'bar'
+      })
+      assert.deepEqual(controller.model.state, {
+        foo: 'foo',
+        bar: 'foo'
+      })
+      assert.deepEqual(JSON.parse(controller.devtools.initialModelString), {
+        foo: 'bar',
+        bar: 'foo'
+      })
+      assert.deepEqual(controller.devtools.debuggerComponentsMap.foo, [{ name: 'TestComponent', renderCount: 1, id: 1 }])
+      assert.deepEqual(controller.devtools.debuggerComponentsMap.bar, [{ name: 'TestComponent', renderCount: 1, id: 1 }])
+      assert.equal(controller.devtools.debuggerComponentsMap.test, undefined)
+    }, 150);
 
-      assert.ok(messages.executionFunctionEnd.data.execution)
-      assert.equal(messages.executionFunctionEnd.source, 'ft')
-      assert.deepEqual(messages.executionFunctionEnd.data.execution.output, { bar: 'baz' })
+    setTimeout(() => {
 
-      assert.ok(messages.executionEnd.data.execution)
-      assert.equal(messages.executionEnd.source, 'ft')
+      assert.deepEqual(controller.model.state, JSON.parse(controller.devtools.initialModelString))
+      assert.deepEqual(controller.devtools.backlog, [])
+      assert.deepEqual(controller.devtools.mutations, [])
 
+      /*
+      Failing test. renderCount should be reset.
+      assert.deepEqual(controller.devtools.debuggerComponentsMap.foo, [{ name: 'TestComponent', renderCount: 0, id: 1 }])
+      assert.deepEqual(controller.devtools.debuggerComponentsMap.bar, [{ name: 'TestComponent', renderCount: 0, id: 1 }])
+      */
+      assert.equal(controller.devtools.debuggerComponentsMap.test, undefined)
       mockServer.stop(done);
-    }, 10);
+    }, 1000);
   })
-  it('should send provider data', (done) => {
+  it('should warn when remember message sent if storeMutations option is false', (done) => {
+    let warnCount = 0
+    const originWarn = console.warn
+    console.warn = function (...args) {
+      warnCount++
+      assert.equal(args[0], 'Cerebral Devtools - You tried to time travel, but you have turned of storing of mutations')
+      originWarn.apply(this, args)
+    }
     const mockServer = new Server('ws://localhost:8585')
-    let messages = {}
     mockServer.on('connection', (server) => {
       server.on('message', (event) => {
         const message = JSON.parse(event)
+        switch (message.type) {
+          case 'pong':
+            server.send(JSON.stringify({type: 'ping'}))
+            break
+          case 'ping':
+            server.send(JSON.stringify({type: 'pong'}))
+            break
+        }
+      })
+      setTimeout(() => {
+        server.send(JSON.stringify({type: 'remember', data: 0}))
+      }, 50)
+    })
+    const controller = new Controller({
+      devtools: new Devtools({
+        remoteDebugger: 'localhost:8585',
+        reconnect: true,
+        storeMutations: false
+      })
+    })
+    setTimeout(() => {
+      assert.equal(warnCount, 1)
+      console.warn = originWarn
+      mockServer.stop(done);
+    }, 100);
+  })
+  it('should travel back in time', (done) => {
+    const mockServer = new Server('ws://localhost:8585')
+    let messages = {}, messageTypes = []
+    mockServer.on('connection', (server) => {
+      server.on('message', (event) => {
+        const message = JSON.parse(event)
+        messageTypes.push(message.type)
         switch (message.type) {
           case 'pong':
             server.send(JSON.stringify({type: 'ping'}))
@@ -373,68 +524,288 @@ describe('Devtools', () => {
             break
         }
       })
+      setTimeout(() => {
+        server.send(JSON.stringify({type: 'remember', data: 1}))
+      }, 600)
+      setTimeout(() => {
+        server.send(JSON.stringify({type: 'remember', data: 0}))
+      }, 900)
+      setTimeout(() => {
+        server.send(JSON.stringify({type: 'remember', data: 1}))
+      }, 1200)
     })
-    const MyProvider = (options = {}) => {
-      let cachedProvider = null
-
-      function createProvider (context) {
-        return {
-          doSomething (value) {
-            return value
-          }
-        }
-      }
-
-      return (context) => {
-        context.myProvider = cachedProvider = (cachedProvider || createProvider(context))
-
-        if (context.debugger) {
-          context.debugger.wrapProvider('myProvider')
-        }
-
-        return context
-      }
+    function actionA ({state}) {
+      state.set('foo', 'foo')
     }
-    const devtools = new Devtools({
-      remoteDebugger: 'localhost:8585',
-      reconnect: true
+    function actionB ({state}) {
+      state.set('bar', 'bar')
+    }
+
+    const controller = Controller({
+      devtools: new Devtools({
+        remoteDebugger: 'localhost:8585'
+      }),
+      state: {
+        foo: 'bar',
+        bar: 'foo'
+      },
+      signals: {
+        testA: [
+          actionA
+        ],
+        testB: [
+          actionB
+        ]
+      }
     })
-    const ft = new FunctionTree([
-      MyProvider()
-    ])
-    devtools.add(ft)
+    let rememberCount = 0
+    controller.on('remember', (datetime) => {
+      rememberCount++
+    })
 
-    function actionA ({myProvider}) {
-      assert.ok(true)
-      assert.equal(myProvider.doSomething('bar'), 'bar')
-    }
+    const TestComponent = connect({
+      foo: state`foo`,
+      bar: state`bar`
+    }, (props) => {
+      return (
+        <div>{props.foo}</div>
+      )
+    })
+    TestComponent.displayName = "TestComponent"
+    const tree = TestUtils.renderIntoDocument((
+      <Container controller={controller}>
+        <TestComponent />
+      </Container>
+    ))
+    assert.equal(TestUtils.findRenderedDOMComponentWithTag(tree, 'div').innerHTML, 'bar')
 
     setTimeout(() => {
-
-      ft.run([
-        actionA
-      ], {
-        foo: 'bar'
+      assert.deepEqual(JSON.parse(controller.devtools.initialModelString), {
+        foo: 'bar',
+        bar: 'foo'
       })
+      assert.equal(controller.devtools.isConnected, true)
 
-      assert.deepEqual(Object.keys(messages), [ 'executionStart', 'executionFunctionStart', 'execution', 'executionEnd' ])
-      assert.ok(messages.executionStart.data.execution)
-      assert.equal(messages.executionStart.source, 'ft')
+      controller.getSignal('testA')()
+      assert.deepEqual(controller.model.state, {
+        foo: 'foo',
+        bar: 'foo'
+      })
+      controller.getSignal('testB')()
+      assert.deepEqual(controller.model.state, {
+        foo: 'foo',
+        bar: 'bar'
+      })
+      assert.deepEqual(JSON.parse(controller.devtools.initialModelString), {
+        foo: 'bar',
+        bar: 'foo'
+      })
+      assert.deepEqual(controller.devtools.debuggerComponentsMap.foo, [{ name: 'TestComponent', renderCount: 2, id: 1 }])
+      assert.deepEqual(controller.devtools.debuggerComponentsMap.bar, [{ name: 'TestComponent', renderCount: 2, id: 1 }])
+      assert.equal(controller.devtools.debuggerComponentsMap.test, undefined)
+      assert.equal(controller.devtools.mutations.length, 2)
+      assert.equal(rememberCount, 0)
+    }, 150);
 
-      assert.ok(messages.executionFunctionStart.data.execution)
-      assert.equal(messages.executionFunctionStart.source, 'ft')
-      assert.deepEqual(messages.executionFunctionStart.data.execution.payload, { foo: 'bar' })
-
-      assert.ok(messages.execution.data.execution)
-      assert.equal(messages.execution.source, 'ft')
-      assert.deepEqual(messages.execution.data.execution.payload, { foo: 'bar' })
-      assert.equal(messages.execution.data.execution.data.method, 'myProvider.doSomething')
-      assert.deepEqual(messages.execution.data.execution.data.args, ['bar'])
-
-      assert.ok(messages.executionEnd.data.execution)
-      assert.equal(messages.executionEnd.source, 'ft')
+    setTimeout(() => {
+      assert.deepEqual(controller.model.state, {
+        foo: 'foo',
+        bar: 'foo'
+      })
+      assert.equal(controller.devtools.mutations.length, 2)
+      assert.equal(rememberCount, 1)
+      //assert.deepEqual(controller.model.state, JSON.parse(controller.devtools.initialModelString))
+      //assert.deepEqual(controller.devtools.mutations, [])
+    }, 800);
+    setTimeout(() => {
+      assert.deepEqual(controller.model.state, {
+        foo: 'foo',
+        bar: 'bar'
+      })
+      assert.equal(controller.devtools.mutations.length, 2)
+      assert.equal(rememberCount, 2)
+      //assert.deepEqual(controller.model.state, JSON.parse(controller.devtools.initialModelString))
+      //assert.deepEqual(controller.devtools.mutations, [])
+    }, 1100);
+    setTimeout(() => {
+      assert.deepEqual(controller.model.state, {
+        foo: 'foo',
+        bar: 'foo'
+      })
+      assert.equal(controller.devtools.mutations.length, 2)
+      assert.equal(rememberCount, 3)
+      //assert.deepEqual(controller.model.state, JSON.parse(controller.devtools.initialModelString))
+      //assert.deepEqual(controller.devtools.mutations, [])
 
       mockServer.stop(done);
-    }, 10);
-  })*/
+    }, 1400);
+  })
+  it('should warn when the signal fired while debugger is remembering state', (done) => {
+    let warnCount = 0
+    const originWarn = console.warn
+    console.warn = function (...args) {
+      warnCount++
+      assert.equal(args[0], 'The signal "testB" fired while debugger is remembering state, it was ignored')
+      originWarn.apply(this, args)
+    }
+    const mockServer = new Server('ws://localhost:8585')
+    mockServer.on('connection', (server) => {
+      server.on('message', (event) => {
+        const message = JSON.parse(event)
+        switch (message.type) {
+          case 'pong':
+            server.send(JSON.stringify({type: 'ping'}))
+            break
+          case 'ping':
+            server.send(JSON.stringify({type: 'pong'}))
+            break
+        }
+      })
+      setTimeout(() => {
+        server.send(JSON.stringify({type: 'remember', data: 1}))
+      }, 600)
+    })
+    function actionA ({state}) {
+      state.set('foo', 'foo')
+    }
+    function actionB ({state}) {
+      state.set('bar', 'bar')
+    }
+
+    const controller = Controller({
+      devtools: new Devtools({
+        remoteDebugger: 'localhost:8585'
+      }),
+      state: {
+        foo: 'bar',
+        bar: 'foo'
+      },
+      signals: {
+        testA: [
+          actionA
+        ],
+        testB: [
+          actionB
+        ]
+      }
+    })
+    const TestComponent = connect({
+      foo: state`foo`,
+      bar: state`bar`
+    }, (props) => {
+      return (
+        <div>{props.foo}</div>
+      )
+    })
+    TestComponent.displayName = "TestComponent"
+    const tree = TestUtils.renderIntoDocument((
+      <Container controller={controller}>
+        <TestComponent />
+      </Container>
+    ))
+    assert.equal(TestUtils.findRenderedDOMComponentWithTag(tree, 'div').innerHTML, 'bar')
+
+    setTimeout(() => {
+      assert.deepEqual(JSON.parse(controller.devtools.initialModelString), {
+        foo: 'bar',
+        bar: 'foo'
+      })
+      assert.equal(controller.devtools.isConnected, true)
+
+      controller.getSignal('testA')()
+      assert.deepEqual(controller.model.state, {
+        foo: 'foo',
+        bar: 'foo'
+      })
+      controller.getSignal('testB')()
+      assert.deepEqual(controller.model.state, {
+        foo: 'foo',
+        bar: 'bar'
+      })
+      assert.deepEqual(JSON.parse(controller.devtools.initialModelString), {
+        foo: 'bar',
+        bar: 'foo'
+      })
+      assert.deepEqual(controller.devtools.debuggerComponentsMap.foo, [{ name: 'TestComponent', renderCount: 2, id: 1 }])
+      assert.deepEqual(controller.devtools.debuggerComponentsMap.bar, [{ name: 'TestComponent', renderCount: 2, id: 1 }])
+      assert.equal(controller.devtools.debuggerComponentsMap.test, undefined)
+      assert.equal(controller.devtools.mutations.length, 2)
+    }, 150)
+
+    setTimeout(() => {
+      assert.deepEqual(controller.model.state, {
+        foo: 'foo',
+        bar: 'foo'
+      })
+      assert.equal(controller.devtools.mutations.length, 2)
+      controller.getSignal('testB')()
+      assert.deepEqual(controller.model.state, {
+        foo: 'foo',
+        bar: 'foo'
+      })
+
+      assert.equal(warnCount, 1)
+      console.warn = originWarn
+      mockServer.stop(done);
+    }, 800)
+  })
+  it('should change model state when debugger model state changed', (done) => {
+    const mockServer = new Server('ws://localhost:8585')
+    let messages = {}, messageTypes = []
+    mockServer.on('connection', (server) => {
+      server.on('message', (event) => {
+        const message = JSON.parse(event)
+        messageTypes.push(message.type)
+        switch (message.type) {
+          case 'pong':
+            server.send(JSON.stringify({type: 'ping'}))
+            break
+          case 'ping':
+            server.send(JSON.stringify({type: 'pong'}))
+            break
+          case 'init':
+            break
+          default:
+            messages[message.type] = message
+            break
+        }
+      })
+      setTimeout(() => {
+        server.send(JSON.stringify({type: 'changeModel', data: {path: [ 'foo' ], value: 'baz'}}))
+      }, 60)
+    })
+
+    const controller = Controller({
+      devtools: new Devtools({
+        remoteDebugger: 'localhost:8585'
+      }),
+      state: {
+        foo: 'bar',
+        bar: 'foo'
+      }
+    })
+    const TestComponent = connect({
+      foo: state`foo`,
+      bar: state`bar`
+    }, (props) => {
+      return (
+        <div>{props.foo}</div>
+      )
+    })
+    TestComponent.displayName = "TestComponent"
+    const tree = TestUtils.renderIntoDocument((
+      <Container controller={controller}>
+        <TestComponent />
+      </Container>
+    ))
+    assert.equal(TestUtils.findRenderedDOMComponentWithTag(tree, 'div').innerHTML, 'bar')
+
+    setTimeout(() => {
+      assert.deepEqual(controller.model.state, {
+        foo: 'baz',
+        bar: 'foo'
+      })
+      mockServer.stop(done);
+    }, 100)
+  })
 })
