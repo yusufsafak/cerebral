@@ -294,13 +294,13 @@ describe('Devtools', () => {
         foo: 'bar'
       })
 
-      assert.deepEqual(Object.keys(messages), [ 'executionStart', 'executionFunctionStart', 'executionPathStart', 'executionFunctionEnd', 'executionEnd' ])
+      assert.deepEqual(Object.keys(messages), [ 'executionStart', 'execution', 'executionPathStart', 'executionFunctionEnd', 'executionEnd' ])
       assert.ok(messages.executionStart.data.execution)
       assert.equal(messages.executionStart.source, 'ft')
 
-      assert.ok(messages.executionFunctionStart.data.execution)
-      assert.equal(messages.executionFunctionStart.source, 'ft')
-      assert.deepEqual(messages.executionFunctionStart.data.execution.payload, { foo: 'bar' })
+      assert.ok(messages.execution.data.execution)
+      assert.equal(messages.execution.source, 'ft')
+      assert.deepEqual(messages.execution.data.execution.payload, { foo: 'bar' })
 
       assert.ok(messages.executionPathStart.data.execution)
       assert.equal(messages.executionPathStart.source, 'ft')
@@ -364,12 +364,12 @@ describe('Devtools', () => {
         assert.ok(error.message.match(/needs to be a path of either success/))
       })
 
-      assert.deepEqual(Object.keys(messages), [ 'executionStart', 'executionFunctionStart', 'executionFunctionError' ])
+      assert.deepEqual(Object.keys(messages), [ 'executionStart', 'execution', 'executionFunctionError' ])
       assert.ok(messages.executionStart.data.execution)
       assert.equal(messages.executionStart.source, 'ft')
 
-      assert.ok(messages.executionFunctionStart.data.execution)
-      assert.equal(messages.executionFunctionStart.source, 'ft')
+      assert.ok(messages.execution.data.execution)
+      assert.equal(messages.execution.source, 'ft')
 
       assert.ok(messages.executionFunctionError.data.execution)
       assert.equal(messages.executionFunctionError.source, 'ft')
@@ -436,11 +436,11 @@ describe('Devtools', () => {
       assert.ok(executionStartMessage.data.execution)
       assert.equal(executionStartMessage.source, 'ft')
 
-      let executionFunctionStartMessage = JSON.parse(messages.bulk.data.messages[1])
-      assert.equal(executionFunctionStartMessage.type, 'executionFunctionStart')
-      assert.ok(executionFunctionStartMessage.data.execution)
-      assert.equal(executionFunctionStartMessage.source, 'ft')
-      assert.deepEqual(executionFunctionStartMessage.data.execution.payload, { foo: 'bar' })
+      let executionMessage = JSON.parse(messages.bulk.data.messages[1])
+      assert.equal(executionMessage.type, 'execution')
+      assert.ok(executionMessage.data.execution)
+      assert.equal(executionMessage.source, 'ft')
+      assert.deepEqual(executionMessage.data.execution.payload, { foo: 'bar' })
 
       const executionPathStartMessage = JSON.parse(messages.bulk.data.messages[2])
       assert.equal(executionPathStartMessage.type, 'executionPathStart')
@@ -448,11 +448,11 @@ describe('Devtools', () => {
       assert.equal(executionPathStartMessage.source, 'ft')
       assert.equal(executionPathStartMessage.data.execution.path, 'success')
 
-      executionFunctionStartMessage = JSON.parse(messages.bulk.data.messages[3])
-      assert.equal(executionFunctionStartMessage.type, 'executionFunctionStart')
-      assert.ok(executionFunctionStartMessage.data.execution)
-      assert.equal(executionFunctionStartMessage.source, 'ft')
-      assert.deepEqual(executionFunctionStartMessage.data.execution.payload, { foo: 'bar' })
+      executionMessage = JSON.parse(messages.bulk.data.messages[3])
+      assert.equal(executionMessage.type, 'execution')
+      assert.ok(executionMessage.data.execution)
+      assert.equal(executionMessage.source, 'ft')
+      assert.deepEqual(executionMessage.data.execution.payload, { foo: 'bar' })
 
       const executionFunctionEndMessage = JSON.parse(messages.bulk.data.messages[4])
       assert.equal(executionFunctionEndMessage.type, 'executionFunctionEnd')
@@ -468,9 +468,11 @@ describe('Devtools', () => {
       mockServer.stop(done)
     }, 10)
   })
+  // TODO : check this one
   it('should send provider data', (done) => {
     const mockServer = new Server('ws://localhost:8585')
     let messages = {}
+    let messageTypes = []
     mockServer.on('connection', (server) => {
       server.on('message', (event) => {
         const message = JSON.parse(event)
@@ -483,7 +485,17 @@ describe('Devtools', () => {
             break
           case 'init':
             break
+          case 'execution':
+            messageTypes.push(message.type)
+            if (Array.isArray(messages[message.type])) {
+              messages[message.type].push(message)
+            }
+            else {
+              messages[message.type] = [message]
+            }
+            break
           default:
+            messageTypes.push(message.type)
             messages[message.type] = message
             break
         }
@@ -531,19 +543,20 @@ describe('Devtools', () => {
         foo: 'bar'
       })
 
-      assert.deepEqual(Object.keys(messages), [ 'executionStart', 'executionFunctionStart', 'execution', 'executionEnd' ])
+      assert.deepEqual(messageTypes, [ 'executionStart', 'execution', 'execution', 'executionEnd' ])
       assert.ok(messages.executionStart.data.execution)
       assert.equal(messages.executionStart.source, 'ft')
 
-      assert.ok(messages.executionFunctionStart.data.execution)
-      assert.equal(messages.executionFunctionStart.source, 'ft')
-      assert.deepEqual(messages.executionFunctionStart.data.execution.payload, { foo: 'bar' })
+      assert.equal(messages.execution.length, 2)
+      assert.ok(messages.execution[0].data.execution)
+      assert.equal(messages.execution[0].source, 'ft')
+      assert.deepEqual(messages.execution[0].data.execution.payload, { foo: 'bar' })
 
-      assert.ok(messages.execution.data.execution)
-      assert.equal(messages.execution.source, 'ft')
-      assert.deepEqual(messages.execution.data.execution.payload, { foo: 'bar' })
-      assert.equal(messages.execution.data.execution.data.method, 'myProvider.doSomething')
-      assert.deepEqual(messages.execution.data.execution.data.args, ['bar'])
+      assert.ok(messages.execution[1].data.execution)
+      assert.equal(messages.execution[1].source, 'ft')
+      assert.deepEqual(messages.execution[1].data.execution.payload, { foo: 'bar' })
+      assert.equal(messages.execution[1].data.execution.data.method, 'myProvider.doSomething')
+      assert.deepEqual(messages.execution[1].data.execution.data.args, ['bar'])
 
       assert.ok(messages.executionEnd.data.execution)
       assert.equal(messages.executionEnd.source, 'ft')

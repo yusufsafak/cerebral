@@ -96,10 +96,12 @@ export class Devtools extends DevtoolsBase {
     const message = JSON.parse(event.data)
     switch (message.type) {
       case 'changeModel':
+        console.log('CEREBRAL: changeModel fired')
         this.controller.model.set(message.data.path, message.data.value)
         this.controller.flush()
         break
       case 'remember':
+        console.log('CEREBRAL: Remember fired', this.mutations, message.data)
         if (!this.storeMutations) {
           console.warn('Cerebral Devtools - You tried to time travel, but you have turned of storing of mutations')
         } else {

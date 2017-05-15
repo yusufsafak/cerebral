@@ -22,7 +22,7 @@ describe('Devtools', () => {
       new Devtools({}) // eslint-disable-line no-new
     }, (err) => {
       if (err instanceof Error) {
-        return err.message === 'Function-tree DevtoolsBase: You have to pass in the "remoteDebugger" option'
+        return err.message === 'Devtools: You have to pass in the "remoteDebugger" option'
       }
     })
   })
@@ -151,7 +151,6 @@ describe('Devtools', () => {
     mockServer.on('connection', (server) => {
       server.on('message', (event) => {
         const message = JSON.parse(event)
-        messageTypes.push(message.type)
         switch (message.type) {
           case 'pong':
             server.send(JSON.stringify({type: 'ping'}))
@@ -161,7 +160,17 @@ describe('Devtools', () => {
             break
           case 'init':
             break
+          case 'execution':
+            messageTypes.push(message.type)
+            if (Array.isArray(messages[message.type])) {
+              messages[message.type].push(message)
+            }
+            else {
+              messages[message.type] = [message]
+            }
+            break
           default:
+            messageTypes.push(message.type)
             messages[message.type] = message
             break
         }
@@ -214,7 +223,7 @@ describe('Devtools', () => {
     assert.equal(TestUtils.findRenderedDOMComponentWithTag(tree, 'div').innerHTML, 'bar')
 
     setTimeout(() => {
-      assert.deepEqual(messageTypes, ['ping', 'init', 'bulk', 'components'])
+      assert.deepEqual(messageTypes, ['bulk', 'components'])
       assert.equal(controller.devtools.isConnected, true)
 
       assert.deepEqual(controller.devtools.debuggerComponentsMap.foo, [{ name: 'TestComponent', renderCount: 0, id: 1 }])
@@ -239,28 +248,34 @@ describe('Devtools', () => {
       assert.deepEqual(controller.devtools.debuggerComponentsMap.bar, [{ name: 'TestComponent', renderCount: 1, id: 1 }])
       assert.equal(controller.devtools.debuggerComponentsMap.test, undefined)
 
-      assert.deepEqual(messageTypes, ['ping', 'init', 'bulk', 'components', 'executionStart', 'executionFunctionStart', 'execution', 'executionPathStart', 'executionFunctionStart', 'executionFunctionEnd', 'executionEnd'])
+      assert.deepEqual(messageTypes, ['bulk', 'components', 'executionStart', 'execution', 'execution', 'executionPathStart', 'execution', 'executionFunctionEnd', 'executionEnd'])
       assert.ok(messages.executionStart.data.execution)
       assert.equal(messages.executionStart.source, 'c')
 
-      assert.ok(messages.executionFunctionStart.data.execution)
-      assert.equal(messages.executionFunctionStart.source, 'c')
-      assert.equal(messages.executionFunctionStart.version, version)
-      assert.deepEqual(messages.executionFunctionStart.data.execution.payload, { foo: 'bar' })
+      assert.equal(messages.execution.length, 3)
+      assert.ok(messages.execution[0].data.execution)
+      assert.equal(messages.execution[0].source, 'c')
+      assert.equal(messages.execution[0].version, version)
+      assert.deepEqual(messages.execution[0].data.execution.payload, { foo: 'bar' })
 
-      assert.ok(messages.execution.data.execution)
-      assert.equal(messages.execution.source, 'c')
-      assert.equal(messages.execution.version, version)
-      assert.deepEqual(messages.execution.data.execution.payload, { foo: 'bar' })
-      assert.equal(messages.execution.data.execution.data.method, 'set')
-      assert.deepEqual(messages.execution.data.execution.data.args, [ [ 'foo' ], 'foo' ])
-      assert.equal(messages.execution.data.execution.data.type, 'mutation')
-      assert.equal(messages.execution.data.execution.data.color, '#333')
+      assert.ok(messages.execution[1].data.execution)
+      assert.equal(messages.execution[1].source, 'c')
+      assert.equal(messages.execution[1].version, version)
+      assert.deepEqual(messages.execution[1].data.execution.payload, { foo: 'bar' })
+      assert.equal(messages.execution[1].data.execution.data.method, 'set')
+      assert.deepEqual(messages.execution[1].data.execution.data.args, [ [ 'foo' ], 'foo' ])
+      assert.equal(messages.execution[1].data.execution.data.type, 'mutation')
+      assert.equal(messages.execution[1].data.execution.data.color, '#333')
 
       assert.ok(messages.executionPathStart.data.execution)
       assert.equal(messages.executionPathStart.source, 'c')
       assert.equal(messages.executionPathStart.version, version)
       assert.equal(messages.executionPathStart.data.execution.path, 'success')
+
+      assert.ok(messages.execution[2].data.execution)
+      assert.equal(messages.execution[2].source, 'c')
+      assert.equal(messages.execution[2].version, version)
+      assert.deepEqual(messages.execution[2].data.execution.payload, { foo: 'bar' })
 
       assert.ok(messages.executionFunctionEnd.data.execution)
       assert.equal(messages.executionFunctionEnd.source, 'c')
@@ -280,7 +295,6 @@ describe('Devtools', () => {
     mockServer.on('connection', (server) => {
       server.on('message', (event) => {
         const message = JSON.parse(event)
-        messageTypes.push(message.type)
         switch (message.type) {
           case 'pong':
             server.send(JSON.stringify({type: 'ping'}))
@@ -290,7 +304,17 @@ describe('Devtools', () => {
             break
           case 'init':
             break
+          case 'execution':
+            messageTypes.push(message.type)
+            if (Array.isArray(messages[message.type])) {
+              messages[message.type].push(message)
+            }
+            else {
+              messages[message.type] = [message]
+            }
+            break
           default:
+            messageTypes.push(message.type)
             messages[message.type] = message
             break
         }
@@ -345,20 +369,17 @@ describe('Devtools', () => {
     setTimeout(() => {
       controller.getSignal('test')()
 
-      assert.deepEqual(messageTypes, [ 'ping', 'init', 'bulk', 'components', 'executionStart', 'executionFunctionStart', 'executionFunctionError',
+      assert.deepEqual(messageTypes, ['bulk', 'components', 'executionStart', 'execution', 'executionFunctionError',
       // catch signal called
-        'executionStart', 'executionFunctionStart', 'executionEnd' ])
+        'executionStart', 'execution', 'executionEnd' ])
       mockServer.stop(done)
     }, 10)
   })
   it('should reset', (done) => {
     const mockServer = new Server('ws://localhost:8585')
-    let messages = {}
-    let messageTypes = []
     mockServer.on('connection', (server) => {
       server.on('message', (event) => {
         const message = JSON.parse(event)
-        messageTypes.push(message.type)
         switch (message.type) {
           case 'pong':
             server.send(JSON.stringify({type: 'ping'}))
@@ -366,10 +387,7 @@ describe('Devtools', () => {
           case 'ping':
             server.send(JSON.stringify({type: 'pong'}))
             break
-          case 'init':
-            break
           default:
-            messages[message.type] = message
             break
         }
       })
@@ -502,23 +520,15 @@ describe('Devtools', () => {
   })
   it('should travel back in time', (done) => {
     const mockServer = new Server('ws://localhost:8585')
-    let messages = {}
-    let messageTypes = []
     mockServer.on('connection', (server) => {
       server.on('message', (event) => {
         const message = JSON.parse(event)
-        messageTypes.push(message.type)
         switch (message.type) {
           case 'pong':
             server.send(JSON.stringify({type: 'ping'}))
             break
           case 'ping':
             server.send(JSON.stringify({type: 'pong'}))
-            break
-          case 'init':
-            break
-          default:
-            messages[message.type] = message
             break
         }
       })
@@ -749,23 +759,15 @@ describe('Devtools', () => {
   })
   it('should change model state when debugger model state changed', (done) => {
     const mockServer = new Server('ws://localhost:8585')
-    let messages = {}
-    let messageTypes = []
     mockServer.on('connection', (server) => {
       server.on('message', (event) => {
         const message = JSON.parse(event)
-        messageTypes.push(message.type)
         switch (message.type) {
           case 'pong':
             server.send(JSON.stringify({type: 'ping'}))
             break
           case 'ping':
             server.send(JSON.stringify({type: 'pong'}))
-            break
-          case 'init':
-            break
-          default:
-            messages[message.type] = message
             break
         }
       })
