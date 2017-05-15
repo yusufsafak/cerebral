@@ -48,7 +48,7 @@ export default connect({
                   }
 
                   mutationDoubleClicked({index})
-                  connector.sendEvent(port, 'changeModel', index)
+                  connector.sendEvent(port, 'remember', index)
                 }}
                 className={classnames('list-item', {
                   'faded': searchValue && !isSearchHit

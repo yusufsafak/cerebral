@@ -164,8 +164,7 @@ describe('Devtools', () => {
             messageTypes.push(message.type)
             if (Array.isArray(messages[message.type])) {
               messages[message.type].push(message)
-            }
-            else {
+            } else {
               messages[message.type] = [message]
             }
             break
@@ -308,8 +307,7 @@ describe('Devtools', () => {
             messageTypes.push(message.type)
             if (Array.isArray(messages[message.type])) {
               messages[message.type].push(message)
-            }
-            else {
+            } else {
               messages[message.type] = [message]
             }
             break

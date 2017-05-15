@@ -10,7 +10,6 @@ import {
   isNull
 } from '../../../common/utils'
 import JSONInput from './JSONInput'
-import connector from 'connector'
 
 function isInPath (source, target) {
   if (!source || !target) {
