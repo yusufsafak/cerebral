@@ -8,12 +8,11 @@ Devtools.prototype.createSocket = function () {
   this.ws = new WebSocket(`ws://${this.remoteDebugger}`)
 }
 
-
 describe('Devtools', () => {
   describe('DevtoolsBase', () => {
     it('should throw when remoteDebugger is not set', () => {
       assert.throws(() => {
-        const devtools = new Devtools()
+        new Devtools() // eslint-disable-line no-new
       }, (err) => {
         if (err instanceof Error) {
           return err.message === 'Devtools: You have to pass in the "remoteDebugger" option'
@@ -40,8 +39,8 @@ describe('Devtools', () => {
       assert.equal(devtools.isConnected, false)
       assert.equal(devtools.reconnectInterval, 10000)
       assert.equal(devtools.doReconnect, true)
-      mockServer.stop(done);
-    }, 10);
+      mockServer.stop(done)
+    }, 10)
   })
   it('should work when debugger is already opened', (done) => {
     const mockServer = new Server('ws://localhost:8585')
@@ -68,8 +67,8 @@ describe('Devtools', () => {
     setTimeout(() => {
       assert.deepEqual(messages, ['ping', 'init'])
       assert.equal(devtools.isConnected, true)
-      mockServer.stop(done);
-    }, 10);
+      mockServer.stop(done)
+    }, 10)
   })
   /* it.only('should work when Debugger is opened after app load', (done) => {
 
@@ -140,8 +139,8 @@ describe('Devtools', () => {
       assert.equal(warnCount, 1)
       assert.equal(devtools.isConnected, true)
       console.warn = originWarn
-      mockServer.stop(done);
-    }, 1700);
+      mockServer.stop(done)
+    }, 1700)
   })
   it('should add function tree', (done) => {
     const mockServer = new Server('ws://localhost:8585')
@@ -172,8 +171,8 @@ describe('Devtools', () => {
       assert.equal(devtools.trees.length, 1)
       assert.deepEqual(devtools.trees[0], ft)
       assert.equal(devtools.isConnected, true)
-      mockServer.stop(done);
-    }, 10);
+      mockServer.stop(done)
+    }, 10)
   })
   it('should remove function tree', (done) => {
     const mockServer = new Server('ws://localhost:8585')
@@ -203,8 +202,8 @@ describe('Devtools', () => {
       assert.equal(ft.contextProviders.length, 0)
       assert.equal(devtools.trees.length, 0)
       assert.equal(devtools.isConnected, true)
-      mockServer.stop(done);
-    }, 10);
+      mockServer.stop(done)
+    }, 10)
   })
   it('should remove all trees', (done) => {
     const mockServer = new Server('ws://localhost:8585')
@@ -243,8 +242,8 @@ describe('Devtools', () => {
       assert.equal(ftB.contextProviders.length, 0)
       assert.equal(devtools.trees.length, 0)
       assert.equal(devtools.isConnected, true)
-      mockServer.stop(done);
-    }, 10);
+      mockServer.stop(done)
+    }, 10)
   })
   it('should watch function tree executions', (done) => {
     const mockServer = new Server('ws://localhost:8585')
@@ -285,7 +284,6 @@ describe('Devtools', () => {
     }
 
     setTimeout(() => {
-
       ft.run([
         actionA, {
           success: [
@@ -315,8 +313,8 @@ describe('Devtools', () => {
       assert.ok(messages.executionEnd.data.execution)
       assert.equal(messages.executionEnd.source, 'ft')
 
-      mockServer.stop(done);
-    }, 10);
+      mockServer.stop(done)
+    }, 10)
   })
   it('should watch function tree execution error', (done) => {
     const mockServer = new Server('ws://localhost:8585')
@@ -358,7 +356,6 @@ describe('Devtools', () => {
     })
 
     setTimeout(() => {
-
       ft.run([
         actionA, {
           success: []
@@ -380,8 +377,8 @@ describe('Devtools', () => {
       assert.equal(messages.executionFunctionError.data.execution.error.func, actionA.toString())
       assert.ok(messages.executionFunctionError.data.execution.error.message.match(/needs to be a path of either success/))
 
-      mockServer.stop(done);
-    }, 10);
+      mockServer.stop(done)
+    }, 10)
   })
   it('should keep execution messages when debugger is not ready and send bulk messages after debugger is ready', (done) => {
     const mockServer = new Server('ws://localhost:8585')
@@ -468,8 +465,8 @@ describe('Devtools', () => {
       assert.ok(executionEndMessage.data.execution)
       assert.equal(executionEndMessage.source, 'ft')
 
-      mockServer.stop(done);
-    }, 10);
+      mockServer.stop(done)
+    }, 10)
   })
   it('should send provider data', (done) => {
     const mockServer = new Server('ws://localhost:8585')
@@ -528,7 +525,6 @@ describe('Devtools', () => {
     }
 
     setTimeout(() => {
-
       ft.run([
         actionA
       ], {
@@ -552,7 +548,7 @@ describe('Devtools', () => {
       assert.ok(messages.executionEnd.data.execution)
       assert.equal(messages.executionEnd.source, 'ft')
 
-      mockServer.stop(done);
-    }, 10);
+      mockServer.stop(done)
+    }, 10)
   })
 })

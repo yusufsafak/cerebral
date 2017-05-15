@@ -1,6 +1,5 @@
 /* global WebSocket File FileList Blob ImageData */
-import {delay, throwError} from '../utils'
-import Path from 'function-tree/lib/Path'
+import {delay} from '../utils'
 import DevtoolsBase from 'function-tree/lib/devtools/base'
 const PLACEHOLDER_INITIAL_MODEL = 'PLACEHOLDER_INITIAL_MODEL'
 const PLACEHOLDER_DEBUGGING_DATA = '$$DEBUGGING_DATA$$'
@@ -26,7 +25,7 @@ export class Devtools extends DevtoolsBase {
       reconnect,
       reconnectInterval
     })
-    this.version = VERSION
+    this.version = VERSION // eslint-disable-line
     this.debuggerComponentsMap = {}
     this.debuggerComponentDetailsId = 1
     this.storeMutations = storeMutations
@@ -104,7 +103,7 @@ export class Devtools extends DevtoolsBase {
         if (!this.storeMutations) {
           console.warn('Cerebral Devtools - You tried to time travel, but you have turned of storing of mutations')
         } else {
-          //TODO should we emit remember message???? throw error there are no mutations
+          // TODO should we emit remember message???? throw error there are no mutations
           this.remember(message.data)
         }
         break
