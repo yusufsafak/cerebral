@@ -6,7 +6,7 @@ export class Devtools extends DevtoolsBase {
     super(options)
     this.trees = []
     this.latestExecutionId = null
-    this.version = VERSION
+    this.version = VERSION // eslint-disable-line
     this.init()
   }
   createSocket () {
