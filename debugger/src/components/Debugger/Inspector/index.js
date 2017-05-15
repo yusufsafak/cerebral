@@ -266,11 +266,6 @@ class Value extends Inferno.Component {
       value
     })
     this.setState({isEditing: false})
-
-    connector.sendEvent('changeModel', {
-      path: this.state.path,
-      value: value
-    })
   }
   onBlur () {
     this.setState({isEditing: false})
