@@ -140,7 +140,7 @@ export class DevtoolsBase {
     })
     tree.on('functionStart', (execution, funcDetails, payload) => {
       const message = this.safeStringify({
-        type: 'executionFunctionStart',
+        type: 'execution',
         source: source,
         version: this.version,
         data: {
