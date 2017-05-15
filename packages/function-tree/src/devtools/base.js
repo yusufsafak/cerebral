@@ -197,7 +197,6 @@ export class DevtoolsBase {
       this.sendExecutionMessage(message)
     })
   }
-  // TODO why it is not in cerebral
   safeStringify (object) {
     const refs = []
 

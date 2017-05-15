@@ -468,7 +468,6 @@ describe('Devtools', () => {
       mockServer.stop(done)
     }, 10)
   })
-  // TODO : check this one
   it('should send provider data', (done) => {
     const mockServer = new Server('ws://localhost:8585')
     let messages = {}

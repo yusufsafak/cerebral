@@ -177,7 +177,6 @@ describe('Devtools', () => {
     })
     function actionA ({path, state}) {
       assert.ok(true)
-      // execution send :)
       state.set('foo', 'foo')
       return path.success()
     }
@@ -367,9 +366,7 @@ describe('Devtools', () => {
     setTimeout(() => {
       controller.getSignal('test')()
 
-      assert.deepEqual(messageTypes, ['bulk', 'components', 'executionStart', 'execution', 'executionFunctionError',
-      // catch signal called
-        'executionStart', 'execution', 'executionEnd' ])
+      assert.deepEqual(messageTypes, ['bulk', 'components', 'executionStart', 'execution', 'executionFunctionError', 'executionStart', 'execution', 'executionEnd'])
       mockServer.stop(done)
     }, 10)
   })
@@ -467,12 +464,6 @@ describe('Devtools', () => {
       assert.deepEqual(controller.model.state, JSON.parse(controller.devtools.initialModelString))
       assert.deepEqual(controller.devtools.backlog, [])
       assert.deepEqual(controller.devtools.mutations, [])
-
-      /*
-      Failing test. renderCount should be reset.
-      assert.deepEqual(controller.devtools.debuggerComponentsMap.foo, [{ name: 'TestComponent', renderCount: 0, id: 1 }])
-      assert.deepEqual(controller.devtools.debuggerComponentsMap.bar, [{ name: 'TestComponent', renderCount: 0, id: 1 }])
-      */
       assert.equal(controller.devtools.debuggerComponentsMap.test, undefined)
       mockServer.stop(done)
     }, 1000)
@@ -620,8 +611,6 @@ describe('Devtools', () => {
       })
       assert.equal(controller.devtools.mutations.length, 2)
       assert.equal(rememberCount, 1)
-      // assert.deepEqual(controller.model.state, JSON.parse(controller.devtools.initialModelString))
-      // assert.deepEqual(controller.devtools.mutations, [])
     }, 800)
     setTimeout(() => {
       assert.deepEqual(controller.model.state, {
@@ -630,8 +619,6 @@ describe('Devtools', () => {
       })
       assert.equal(controller.devtools.mutations.length, 2)
       assert.equal(rememberCount, 2)
-      // assert.deepEqual(controller.model.state, JSON.parse(controller.devtools.initialModelString))
-      // assert.deepEqual(controller.devtools.mutations, [])
     }, 1100)
     setTimeout(() => {
       assert.deepEqual(controller.model.state, {
@@ -640,8 +627,6 @@ describe('Devtools', () => {
       })
       assert.equal(controller.devtools.mutations.length, 2)
       assert.equal(rememberCount, 3)
-      // assert.deepEqual(controller.model.state, JSON.parse(controller.devtools.initialModelString))
-      // assert.deepEqual(controller.devtools.mutations, [])
 
       mockServer.stop(done)
     }, 1400)
